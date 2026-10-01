@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Edge Probe B - Web Capture API</title></head>
+<body>
+<h3>Edge Probe B: Web Capture (screenshot) API check</h3>
+<p>Test: apakah web page bisa trigger Web Capture tanpa user gesture?</p>
+<button onclick="probe()">Mulai Probe</button>
+<pre id="log"></pre>
+<script>
+function log(m){ document.getElementById('log').textContent += m + '\n'; }
+
+function probe(){
+  log('=== Edge Web Capture API Probe ===');
+
+  // 1. Cek apakah ada API web capture khusus Edge
+  log('[1] navigator.msSaveBlob: ' + (navigator.msSaveBlob ? 'ADA (legacy Edge)' : 'tidak ada (Chromium Edge)'));
+  log('[2] navigator.msLaunchUri: ' + (navigator.msLaunchUri ? 'ADA (legacy Edge)' : 'tidak ada'));
+
+  // 3. Cek apakah bisa akses edge://webcapture
+  log('[3] Cek akses edge://webcapture...');
+  try {
+    var x = window.open('edge://webcapture', '_blank');
+    log('  -> window.open(edge://webcapture): ' + (x ? 'window object' : 'null (blocked)'));
+  } catch(e) { log('  -> Error: ' + e.message); }
+
+  // 4. Cek apakah bisa trigger screenshot via hotkey simulation
+  log('[4] Cek execCommand (screenshot attempt)...');
+  try {
+    document.execCommand('screenshot');
+    log('  -> execCommand(screenshot): OK (tidak error)');
+  } catch(e) { log('  -> Error: ' + e.message); }
+
+  // 5. Cek Capture API
+  log('[5] navigator.mediaDevices.getDisplayMedia: ' + (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia ? 'ADA' : 'tidak ada'));
+
+  // 6. Cek apakah Edge punya custom capture event
+  log('[6] Cek window event "edgecapture"...');
+  window.addEventListener('edgecapture', function(e){ log('  -> EVENT DITERIMA: ' + JSON.stringify(e.data)); });
+  log('  -> Listener registered');
+
+  // 7. Cek ImageCapture API (mungkin bisa trigger capture)
+  log('[7] ImageCapture API: ' + (window.ImageCapture ? 'ADA' : 'tidak ada'));
+
+  log('\n=== SELESAI ===');
+}
+</script>
+</body>
+</html>

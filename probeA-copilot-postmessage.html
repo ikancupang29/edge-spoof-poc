@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Edge Probe A - Copilot postMessage</title></head>
+<body>
+<h3>Edge Probe A: Copilot sidebar postMessage channel</h3>
+<p>Test: apakah web page bisa kirim postMessage ke Copilot sidebar?</p>
+<button onclick="probe()">Mulai Probe</button>
+<pre id="log"></pre>
+<script>
+function log(m){ document.getElementById('log').textContent += m + '\n'; }
+
+function probe(){
+  log('=== Edge Copilot postMessage Probe ===');
+
+  // 1. Cek apakah ada channel postMessage ke sidebar
+  log('[1] Kirim postMessage ke window.parent (sidebar context)...');
+  try {
+    window.postMessage({type:'copilot-test', origin: location.origin}, '*');
+    log('  -> postMessage ke self: OK (no crash)');
+  } catch(e) {
+    log('  -> Error: ' + e.message);
+  }
+
+  // 2. Cek apakah ada window.opener (sidebar membuka window?)
+  log('[2] window.opener: ' + (window.opener ? 'ADA (sidebar context)' : 'null (normal)'));
+
+  // 3. Cek apakah ada edge:// origin yang accessible
+  log('[3] Cek akses edge:// origin...');
+  try {
+    var x = window.open('edge://sidebar', '_blank');
+    log('  -> window.open(edge://sidebar): ' + (x ? 'window object (mungkin bisa)' : 'null (blocked)'));
+  } catch(e) {
+    log('  -> Error: ' + e.message);
+  }
+
+  // 4. Cek microsoft-edge:// protocol
+  log('[4] Cek microsoft-edge:// protocol...');
+  try {
+    var y = window.open('microsoft-edge://', '_blank');
+    log('  -> window.open(microsoft-edge://): ' + (y ? 'window object' : 'null'));
+  } catch(e) {
+    log('  -> Error: ' + e.message);
+  }
+
+  // 5. Cek read:// protocol (Immersive Reader)
+  log('[5] Cek read:// protocol (Immersive Reader)...');
+  try {
+    var z = window.open('read://https://www.microsoft.com', '_blank');
+    log('  -> window.open(read://): ' + (z ? 'window object (MUNGKIN BISA - cek address bar!)' : 'null'));
+  } catch(e) {
+    log('  -> Error: ' + e.message);
+  }
+
+  // 6. Cek edge://settings
+  log('[6] Cek edge://settings akses...');
+  try {
+    var s = window.open('edge://settings', '_blank');
+    log('  -> window.open(edge://settings): ' + (s ? 'window object' : 'null'));
+  } catch(e) {
+    log('  -> Error: ' + e.message);
+  }
+
+  log('\n=== SELESAI ===');
+  log('Kalau ada yang "window object" = cek address bar window baru!');
+  log('Kalau address bar nunjukin edge:// atau read:// = cek apakah');
+  log('konten bisa dimanipulasi dari halaman ini (spoof).');
+}
+</script>
+</body>
+</html>
