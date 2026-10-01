@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MENU - Edge Spoof PoC (MSRC) v2</title>
+<title>MENU - Edge Spoof PoC (MSRC) v3</title>
 <style>
   body { font-family: -apple-system, sans-serif; margin:0; padding:16px; background:#f0f4ff; }
   h1 { font-size:18px; color:#1a1a2e; }
@@ -13,40 +13,23 @@
   a b { color:#202124; }
   .tag { font-size:11px; color:#888; }
   .sec { font-size:13px; font-weight:bold; color:#555; margin:16px 0 8px; }
-  .new { background:#fff3cd; border-color:#ffe69c; }
-  .new b { color:#664d03; }
 </style>
 </head>
 <body>
-<h1>MENU PoC — MSRC Edge (v2: Probe Fitur Baru)</h1>
-<div class="sub">Buka di <b>Microsoft Edge Stable</b>. Probe = eksplorasi API Edge yang belum pernah dilaporkan.</div>
+<h1>MENU — Edge Spoof PoC v3 (clean)</h1>
+<div class="sub"><b>Step 1:</b> Buka <b>api-enumerator.html</b> dulu, klik Scan, screenshot hasilnya kirim ke saya.<br>
+<b>Step 2:</b> Test <b>real-spoof-test.html</b> (4 teknik A-D), cek address bar tiap teknik.</div>
 
-<div class="sec">PROBE FITUR BARU EDGE (prioritas utama — belum pernah dilaporkan)</div>
-<a href="probeA-copilot-postmessage.html" class="new"><b>PROBE A</b> Copilot postMessage channel <span class="tag">[cek edge://, microsoft-edge://]</span></a>
-<a href="probeB-webcapture.html" class="new"><b>PROBE B</b> Web Capture API <span class="tag">[cek msSaveBlob, capture events]</span></a>
-<a href="probeC-read-protocol.html" class="new"><b>PROBE C</b> read:// protocol spoof <span class="tag">[Immersive Reader origin]</span></a>
-<a href="probeD-collections-overlay.html" class="new"><b>PROBE D</b> Collections + sidebar overlay <span class="tag">[fullscreen + sidebar race]</span></a>
-<a href="probeE-protocol-handlers.html" class="new"><b>PROBE E</b> Protocol handler spoof <span class="tag">[edge://, microsoft-edge://, tel:]</span></a>
+<div class="sec">LANGKAH 1: ENUMERATE (wajib dulu)</div>
+<a href="api-enumerator.html"><b>API Enumerator</b> — scan semua API khusus Edge <span class="tag">[kirim hasil ke saya]</span></a>
 
-<div class="sec">TEKNIK LAMA (sudah di-patch, skip kalau sudah test)</div>
-<a href="edge1-sidebar.html"><b>#1</b> Sidebar Copilot spoof</a>
-<a href="edge2-vertical-tabs.html"><b>#2</b> Vertical tabs + fullscreen</a>
-<a href="edge3-immersive.html"><b>#3</b> Immersive Reader spoof</a>
-<a href="edge4-webcapture.html"><b>#4</b> Web Capture spoof</a>
-<a href="edge5-download.html"><b>#5</b> Download flyout spoof</a>
-<a href="edge6-copilot-permission.html"><b>#6</b> Copilot + permission race</a>
-<a href="edge7-alert-fullscreen.html"><b>#7</b> alert+fullscreen (CVE pattern)</a>
-<a href="edge8-about-blank.html"><b>#8</b> about:blank bridge</a>
-<a href="edge9-redirect-race.html"><b>#9</b> Redirect+reload race</a>
-<a href="edge10-history-race.html"><b>#10</b> History race</a>
+<div class="sec">LANGKAH 2: REAL SPOOF TEST</div>
+<a href="real-spoof-test.html"><b>Real Spoof Test</b> — 4 teknik A-D <span class="tag">[replaceState, hash, document.write, meta+back]</span></a>
 
-<div class="sec">CARA TEST PROBE</div>
+<div class="sec">CATATAN</div>
 <div class="sub">
-1. Klik tombol "Mulai Probe" di tiap halaman.<br>
-2. Baca output log di layar (ada penjelasan tiap step).<br>
-3. Untuk SETIAP window baru yang terbuka: cek address bar vs konten.<br>
-4. Kalau address bar ≠ konten = POTENTIAL SPOOF → record video!<br>
-5. Test di Edge Stable & Edge Canary, bandingkan hasilnya.
+Dari hasil API enumerator, saya bisa cari API Edge yang belum pernah dilaporkan.
+Tanpa enumerate dulu, kita cuma nebak. Dengan enumerate, kita tahu PERSIS apa yang Edge punya.
 </div>
 </body>
 </html>

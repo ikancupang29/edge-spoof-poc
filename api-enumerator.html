@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Edge API Enumerator</title></head>
+<body>
+<h3>Edge API Enumerator — Cari API khusus Edge</h3>
+<p>Klik tombol. Ini scan semua property window yang CUMA ada di Edge (bukan Chrome).</p>
+<button onclick="scan()">Scan Edge APIs</button>
+<pre id="log" style="font-size:12px;white-space:pre-wrap;"></pre>
+<script>
+function log(m){ document.getElementById('log').textContent += m + '\n'; }
+
+function scan(){
+  document.getElementById('log').textContent = '';
+  log('=== EDGE API ENUMERATOR ===\n');
+
+  // 1. Cek property window yang dimulai dengan "edge", "ms", "copilot"
+  log('--- Window properties (edge/ms/copilot) ---');
+  var found = [];
+  for (var k in window) {
+    var kl = k.toLowerCase();
+    if (kl.startsWith('edge') || kl.startsWith('ms') || kl.includes('copilot') || kl.includes('sidebar')) {
+      found.push(k + ' = ' + typeof window[k]);
+    }
+  }
+  log(found.length ? found.join('\n') : '(tidak ada)');
+
+  // 2. Cek navigator properties
+  log('\n--- Navigator properties (edge/ms) ---');
+  var navFound = [];
+  for (var k in navigator) {
+    var kl = k.toLowerCase();
+    if (kl.startsWith('ms') || kl.includes('edge') || kl.includes('copilot')) {
+      navFound.push('navigator.' + k + ' = ' + navigator[k]);
+    }
+  }
+  log(navFound.length ? navFound.join('\n') : '(tidak ada)');
+
+  // 3. Cek UA string
+  log('\n--- User Agent ---');
+  log(navigator.userAgent);
+
+  // 4. Cek document properties
+  log('\n--- Document properties (edge/ms) ---');
+  var docFound = [];
+  for (var k in document) {
+    var kl = k.toLowerCase();
+    if (kl.startsWith('ms') || kl.includes('edge') || kl.includes('copilot') || kl.includes('sidebar')) {
+      docFound.push('document.' + k + ' = ' + typeof document[k]);
+    }
+  }
+  log(docFound.length ? docFound.join('\n') : '(tidak ada)');
+
+  // 5. Cek Edge-specific events
+  log('\n--- Edge-specific events ---');
+  var events = ['edgeaction', 'copilotready', 'sidebaropen', 'sidebarclose',
+                'edgecollection', 'edgeread', 'edgewebcapture', 'mspointer',
+                'msgesture', 'msinertia'];
+  events.forEach(function(e){
+    log('  ' + e + ': ' + ('on' + e in window ? 'ADA' : 'tidak ada'));
+  });
+
+  // 6. Cek IE Mode / compatibility
+  log('\n--- IE Mode / Compatibility ---');
+  log('  document.documentMode: ' + document.documentMode);
+  log('  document.compatMode: ' + document.compatMode);
+
+  // 7. Cek Edge internal URLs yang bisa di-iframe
+  log('\n--- Iframe protocol test ---');
+  var protos = ['edge://', 'microsoft-edge://', 'read://', 'edge://settings',
+                'edge://favorites', 'edge://collections'];
+  protos.forEach(function(p){
+    var iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = p;
+    document.body.appendChild(iframe);
+    setTimeout(function(){
+      try {
+        var title = iframe.contentDocument ? iframe.contentDocument.title : 'blocked';
+        log('  iframe ' + p + ' -> ' + title);
+      } catch(e) {
+        log('  iframe ' + p + ' -> blocked (cross-origin)');
+      }
+      iframe.remove();
+    }, 500);
+  });
+
+  // 8. Cek Web Capture API
+  log('\n--- Web Capture API ---');
+  log('  navigator.mediaDevices.getDisplayMedia: ' + (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia ? 'ADA' : 'tidak'));
+  log('  ImageCapture: ' + (window.ImageCapture ? 'ADA' : 'tidak'));
+
+  // 9. Cek Copilot/Sidebar object
+  log('\n--- Copilot/Sidebar objects ---');
+  log('  window.copilot: ' + typeof window.copilot);
+  log('  window.sidebar: ' + typeof window.sidebar);
+  log('  navigator.copilot: ' + typeof (navigator.copilot || 'undefined'));
+
+  log('\n=== SELESAI ===');
+  log('Copy hasil di atas dan kirim ke saya. Dari sini kita bisa cari API yang bisa di-abuse.');
+}
+</script>
+</body>
+</html>
