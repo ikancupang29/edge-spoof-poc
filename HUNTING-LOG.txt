@@ -1,0 +1,94 @@
+# HUNTING LOG — MSRC EDGE SPOOFING (0-DAY WINDOW)
+
+## CARA KERJA
+1. Buka PoC di Edge STABLE -> catat hasil (R = REPRO / T = TIDAK)
+2. Buka PoC yang SAMA di Edge CANARY -> catat hasil
+3. VERDICT:
+   - Stable=R + Canary=T  ->  HIT! (0-day window, LAYAK REPORT)  <-- TUJUAN
+   - Stable=R + Canary=R   ->  bug aktif di code terbaru, juga layak
+   - Stable=T              ->  skip, lanjut teknik berikutnya
+
+## SEBELUM MULAI (catat dulu)
+TANGGAL    :
+EDGE STABLE VER: _________  (ketik edge://version di address bar)
+EDGE CANARY VER: _________  (ketik edge://version di address bar)
+DEVICE     : (PC / laptop / HP)
+OS         : (Windows 11 / Android)
+
+## ATURAN WAJIB
+- Cross-origin baru valid. Spoof origin sama = BUKAN bug.
+- Rekam video address bar SEBELUM + SESUDAH navigasi untuk yang REPRO.
+- Race condition = ulangi 3-5x, hasil bisa beda tiap percobaan.
+- Jangan report bug yang cuma UI glitch tanpa dampak security (deceive user).
+- Test di Edge Desktop dulu, mobile belakangan.
+
+================================================================================
+LOG TEST — 10 TEKNIK EDGE
+================================================================================
+
+ PRIORITAS 1: FITUR UNIK EDGE (paling mungkin rentan)
+--------------------------------------------------------------------
+# | TEKNIK                         | STABLE | CANARY | VERDICT | CATATAN
+--------------------------------------------------------------------
+1 | Sidebar Copilot origin spoof   |        |        |         |
+2 | Vertical tabs + fullscreen     |        |        |         |
+3 | Immersive Reader origin spoof  |        |        |         |
+4 | Web Capture origin spoof       |        |        |         |
+5 | Download flyout origin spoof   |        |        |         |
+6 | Copilot + permission race      |        |        |         |
+--------------------------------------------------------------------
+
+ PRIORITAS 2: TEKNIK UMUM (port dari Chrome)
+--------------------------------------------------------------------
+# | TEKNIK                         | STABLE | CANARY | VERDICT | CATATAN
+--------------------------------------------------------------------
+7 | alert() + fullscreen + nav    |        |        |         |
+8 | about:blank bridge navigation  |        |        |         |
+9 | Redirect + reload race         |        |        |         |
+10| History back/forward race      |        |        |         |
+--------------------------------------------------------------------
+
+ISIAN: R = REPRO, T = TIDAK repro, - = belum test
+VERDICT: HIT (0-day) / AKTIF (stable+canary repro) / SKIP (stable tidak repro)
+
+================================================================================
+CATATAN HIT (kalau nemu yang repro di stable)
+================================================================================
+
+TEKNIK #   :
+EDGE STABLE VER :
+EDGE CANARY VER  :
+STEPS TO REPRODUCE :
+  1.
+  2.
+  3.
+  4.
+  5.
+
+IMPACT (kenapa ini security bug, bukan cuma glitch):
+  - Address bar tampil: _________ (origin A)
+  - Konten sebenarnya: _________ (origin B)
+  - User bisa di-deceive untuk: _________
+
+LINK POC GITHUB :
+LINK VIDEO BUKTI :
+SCREENSHOT      :
+
+================================================================================
+RIWAYAT LAPORAN (kalau sudah report ke MSRC)
+================================================================================
+
+TANGGAL REPORT :
+TEKNIK #       :
+STATUS MSRC    : (Submitted / Triaged / Fixed / Rewarded / Rejected)
+BOUNTY         : $
+CATATAN        :
+
+================================================================================
+TIPS BERDASARKAN POLA YANG SERING NEMU BUG
+================================================================================
+- Kalau #1-#6 semua TIDAK repro di stable -> NORMAL (fitur baru Edge belum tentu buggy)
+- Kalau #7-#10 TIDAK repro di stable -> NORMAL (sudah diport fix dari Chrome)
+- Yang kamu cari = VARIASI BARU, bukan duplikat bug Chrome
+- Coba kombinasi: fullscreen + sidebar (#1+#2), atau alert + sidebar (#7+#1)
+- Kalau nemu bug di fitur Edge unik = NILAI LEBIH TINGGI (bukan duplikat Chrome)

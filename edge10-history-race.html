@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Edge history race</title></head>
+<body>
+<h3>Edge #10: History back/forward race</h3>
+<p>Klik tombol. Spam pushState lalu back/forward cepat. Perhatikan address bar.</p>
+<button onclick="go()">Mulai</button>
+<script>
+function go(){
+  for (var i=0;i<8;i++){ history.pushState({}, "", "/fake-"+i); }
+  var n=0;
+  var t=setInterval(function(){
+    if(n%2===0){ history.back(); } else { history.forward(); }
+    n++;
+    if(n>14){ clearInterval(t); }
+  }, 40);
+}
+</script>
+</body>
+</html>

