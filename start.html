@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MENU - Edge Spoof PoC (MSRC) v3</title>
+<title>MENU - Edge Spoof v4 (Real Techniques)</title>
 <style>
-  body { font-family: -apple-system, sans-serif; margin:0; padding:16px; background:#f0f4ff; }
+  body { font-family: 'Segoe UI', sans-serif; margin:0; padding:16px; background:#f0f4ff; }
   h1 { font-size:18px; color:#1a1a2e; }
   .sub { font-size:12px; color:#666; margin-bottom:14px; }
   a { display:block; text-decoration:none; background:#fff; border:1px solid #d0d8e8;
@@ -13,23 +13,40 @@
   a b { color:#202124; }
   .tag { font-size:11px; color:#888; }
   .sec { font-size:13px; font-weight:bold; color:#555; margin:16px 0 8px; }
+  .hot { background:#fff3cd; border-color:#ffe69c; }
+  .hot b { color:#664d03; }
 </style>
 </head>
 <body>
-<h1>MENU — Edge Spoof PoC v3 (clean)</h1>
-<div class="sub"><b>Step 1:</b> Buka <b>api-enumerator.html</b> dulu, klik Scan, screenshot hasilnya kirim ke saya.<br>
-<b>Step 2:</b> Test <b>real-spoof-test.html</b> (4 teknik A-D), cek address bar tiap teknik.</div>
+<h1>MENU — Edge Spoof v4 (Teknik Asli)</h1>
+<div class="sub">Buka di <b>Microsoft Edge Stable</b> (desktop). Test tiap teknik, cek address bar.</div>
 
-<div class="sec">LANGKAH 1: ENUMERATE (wajib dulu)</div>
-<a href="api-enumerator.html"><b>API Enumerator</b> — scan semua API khusus Edge <span class="tag">[kirim hasil ke saya]</span></a>
+<div class="sec">TEKNIK BARU (bukan window.open+redirect!)</div>
 
-<div class="sec">LANGKAH 2: REAL SPOOF TEST</div>
-<a href="real-spoof-test.html"><b>Real Spoof Test</b> — 4 teknik A-D <span class="tag">[replaceState, hash, document.write, meta+back]</span></a>
+<a href="inception-bar.html" class="hot"><b>Inception Bar Attack</b> — fake address bar via fullscreen
+  <span class="tag">[fullscreen hide real bar → tampil fake bar microsoft.com]</span></a>
 
-<div class="sec">CATATAN</div>
+<a href="history-race-spoof.html" class="hot"><b>History Race Spoof</b> — 4 teknik tanpa window.open
+  <span class="tag">[replaceState+alert, pushState+back, assign+stop, meta+opener]</span></a>
+
+<a href="slow-commit-race.html" class="hot"><b>Slow Commit Race</b> — address bar vs content mismatch
+  <span class="tag">[slow load + window.stop = address bar target, konten attacker]</span></a>
+
+<a href="api-enumerator.html"><b>API Enumerator</b> — scan API khusus Edge
+  <span class="tag">[kirim hasil scan ke saya]</span></a>
+
+<a href="real-spoof-test.html"><b>Real Spoof Test</b> — 4 teknik A-D
+  <span class="tag">[replaceState, hash, document.write, meta+back]</span></a>
+
+<div class="sec">CARA TEST</div>
 <div class="sub">
-Dari hasil API enumerator, saya bisa cari API Edge yang belum pernah dilaporkan.
-Tanpa enumerate dulu, kita cuma nebak. Dengan enumerate, kita tahu PERSIS apa yang Edge punya.
+<b>Inception Bar:</b> Klik tombol merah → fullscreen → fake bar muncul.
+  Kalau fake bar kelihatan PERSIS seperti real Edge bar = potential spoof.<br><br>
+<b>History Race:</b> Klik tiap tombol → alert muncul →
+  CEK address bar saat alert masih terbuka. Tampil apa?<br><br>
+<b>Slow Commit:</b> Klik tombol → navigasi slow load → window.stop →
+  CEK address bar. Apakah = target tapi konten = attacker?<br><br>
+Test di Stable & Canary, bandingkan. Kalau beda = HIT.
 </div>
 </body>
 </html>

