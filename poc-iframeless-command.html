@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>PoC: Copilot Iframeless Command (stable v154)</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; padding:40px; background:#f0f4ff; }
+  button { padding:14px 24px; background:#0078d4; color:#fff; border:none;
+           border-radius:6px; font-size:15px; cursor:pointer; margin:8px 0; display:block; }
+  pre { font-size:12px; background:#fff; padding:14px; border-radius:6px; margin-top:14px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<h3>PoC: Copilot IframelessCommandExecutor (stable v154 only)</h3>
+<p>
+<b>Binary diff finding:</b><br>
+STABLE v154: <code>iframeless_command_executor.cc</code> ADA<br>
+CANARY v157: <code>iframeless_command_executor.cc</code> DIHAPUS<br>
+<br>
+IframelessCommandExecutor = sistem eksekusi command Copilot TANPA iframe.
+Di canary dihapus = mungkin ada bug security.
+Di stable masih ada = mungkin masih bisa di-trigger.
+</p>
+<p>
+Dari binary stable, ditemukan:<br>
+<code>IframelessCommandExecutor: OpenPaneDelegate called</code><br>
+<code>IframelessCommandExecutor::NotifyPaneReady</code><br>
+<code>IframelessCommandExecutor::OpenSidePane: no delegate set</code><br>
+<code>IframelessPromptDispatcher: executor found</code><br>
+<code>OnPostMessageClosePane</code><br>
+<code>OnPostMessageSendFeedback</code><br>
+<code>PostMessageToBrowser</code>
+</p>
+
+<hr>
+<h4>Test 1: Cek apakah IframelessCommandExecutor bisa di-trigger</h4>
+<button onclick="test1()">Run Test 1</button>
+<pre id="log1"></pre>
+
+<h4>Test 2: postMessage ke Copilot pane</h4>
+<button onclick="test2()">Run Test 2</button>
+<pre id="log2"></pre>
+
+<h4>Test 3: Coba trigger OpenSidePane</h4>
+<button onclick="test3()">Run Test 3</button>
+<pre id="log3"></pre>
+
+<script>
+function log(id, m){ document.getElementById(id).textContent += m + '\n'; }
+
+// Test 1: Cek apakah executor bisa di-trigger via postMessage
+function test1(){
+  log('log1', 'Test 1: Cek IframelessCommandExecutor trigger');
+  log('log1', '');
+
+  // Kirim postMessage dengan format yang mungkin dikenali executor
+  var messages = [
+    {type: 'openPane', source: 'test'},
+    {type: 'openSidePane', source: 'test'},
+    {type: 'closePane', source: 'test'},
+    {type: 'sendFeedback', source: 'test'},
+    {type: 'notifyPaneReady', source: 'test'},
+    {type: 'copilot', action: 'open', source: 'test'},
+    {type: 'executeCommand', command: 'test', source: 'test'},
+    {type: 'iframeless', action: 'open', source: 'test'}
+  ];
+
+  messages.forEach(function(msg, i){
+    log('log1', '  [' + i + '] postMessage: ' + JSON.stringify(msg));
+    try {
+      window.postMessage(msg, '*');
+      log('log1', '      → Terkirim (tidak error)');
+    } catch(e) {
+      log('log1', '      → Error: ' + e.message);
+    }
+  });
+
+  log('log1', '');
+  log('log1', '  Cek console (F12) apakah ada response dari executor.');
+  log('log1', '  JIKA ada response = executor aktif (bug candidate)');
+  log('log1', '  JIKA tidak ada response = executor tidak ter-trigger dari web');
+}
+
+// Test 2: postMessage ke window.parent (kalau halaman ada di iframe/sidebar)
+function test2(){
+  log('log2', 'Test 2: postMessage ke window.parent');
+  log('log2', '  (Simulasi: halaman ini ada di sidebar Copilot)');
+  log('log2', '');
+
+  if (window.parent && window.parent !== window) {
+    log('log2', '  window.parent ada (halaman ini di iframe)');
+    var msgs = [
+      {type: 'closePane'},
+      {type: 'sendFeedback', data: 'test'},
+      {type: 'openSidePane'},
+      {type: 'command', cmd: 'navigate', url: 'https://www.bing.com'}
+    ];
+    msgs.forEach(function(m){
+      try {
+        window.parent.postMessage(m, '*');
+        log('log2', '  postMessage ke parent: ' + JSON.stringify(m) + ' → terkirim');
+      } catch(e) {
+        log('log2', '  Error: ' + e.message);
+      }
+    });
+  } else {
+    log('log2', '  window.parent tidak ada (halaman ini top-level)');
+    log('log2', '  Test ini hanya relevan kalau halaman ada di iframe/sidebar.');
+    log('log2', '  Coba buka halaman ini dari sidebar Copilot untuk test.');
+  }
+}
+
+// Test 3: Coba trigger pane via edge:// URL
+function test3(){
+  log('log3', 'Test 3: Trigger OpenSidePane via edge:// URL');
+  log('log3', '');
+
+  // Coba buka edge:// URL yang mungkin trigger pane
+  var urls = [
+    'edge://sidebar',
+    'edge://copilot',
+    'edge://newtab',
+    'edge://extensions'
+  ];
+
+  urls.forEach(function(url){
+    log('log3', '  Coba: ' + url);
+    try {
+      var w = window.open(url, '_blank');
+      log('log3', '    → ' + (w ? 'OBJECT (tidak diblokir)' : 'null (diblokir)'));
+    } catch(e) {
+      log('log3', '    → Error: ' + e.message);
+    }
+  });
+
+  log('log3', '');
+  log('log3', '  JIKA edge:// URL bisa dibuka dari web = potential issue');
+  log('log3', '  JIKA diblokir = normal (security working)');
+  log('log3', '  Test di Stable & Canary, bandingkan.');
+}
+</script>
+</body>
+</html>

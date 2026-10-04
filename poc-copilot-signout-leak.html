@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>PoC: OneCopilot SignOut Token Leak (stable v154)</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; padding:40px; background:#f0f4ff; }
+  button { padding:14px 24px; background:#0078d4; color:#fff; border:none;
+           border-radius:6px; font-size:15px; cursor:pointer; margin:8px 0; display:block; }
+  pre { font-size:12px; background:#fff; padding:14px; border-radius:6px; margin-top:14px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<h3>PoC: OneCopilot SignOut Token Leak</h3>
+<p>
+<b>Binary diff finding:</b><br>
+CANARY v157: <code>onecopilot_signout_cleanup.cc</code> BARU<br>
+CANARY: <code>CompleteOneCopilotSignOutCleanup: ENTER</code><br>
+CANARY: <code>[OneCopilotAuth][OnecopilotSignoutCleanup]</code><br>
+STABLE v154: TIDAK ADA signout cleanup<br>
+<br>
+Artinya di stable, sign out Copilot MUNGKIN tidak menghapus token dengan benar.
+Token bisa persist setelah sign out = token leak / session persistence.
+</p>
+
+<hr>
+<h4>Test 1: Cek token Copilot di localStorage/sessionStorage setelah sign out</h4>
+<button onclick="test1()">Run Test 1</button>
+<pre id="log1"></pre>
+
+<h4>Test 2: Cek cookie Copilot setelah sign out</h4>
+<button onclick="test2()">Run Test 2</button>
+<pre id="log2"></pre>
+
+<h4>Test 3: Cek IndexedDB untuk token Copilot</h4>
+<button onclick="test3()">Run Test 3</button>
+<pre id="log3"></pre>
+
+<script>
+function log(id, m){ document.getElementById(id).textContent += m + '\n'; }
+
+// Test 1: Cek localStorage & sessionStorage untuk token Copilot
+function test1(){
+  log('log1', 'Test 1: Scan localStorage & sessionStorage untuk token Copilot');
+  log('log1', '');
+
+  // localStorage
+  log('log1', '--- localStorage ---');
+  var lsFound = 0;
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var key = localStorage.key(i);
+      var val = localStorage.getItem(key);
+      if (key.toLowerCase().includes('copilot') ||
+          key.toLowerCase().includes('token') ||
+          key.toLowerCase().includes('auth') ||
+          key.toLowerCase().includes('session') ||
+          key.toLowerCase().includes('oneauth') ||
+          key.toLowerCase().includes('m365') ||
+          key.toLowerCase().includes('bearer')) {
+        log('log1', '  FOUND: ' + key + ' = ' + val.substring(0, 100));
+        lsFound++;
+      }
+    }
+    log('log1', '  Total localStorage entries: ' + localStorage.length);
+    log('log1', '  Copilot/token entries: ' + lsFound);
+  } catch(e) { log('log1', '  Error: ' + e.message); }
+
+  // sessionStorage
+  log('log1', '');
+  log('log1', '--- sessionStorage ---');
+  var ssFound = 0;
+  try {
+    for (var i = 0; i < sessionStorage.length; i++) {
+      var key = sessionStorage.key(i);
+      var val = sessionStorage.getItem(key);
+      if (key.toLowerCase().includes('copilot') ||
+          key.toLowerCase().includes('token') ||
+          key.toLowerCase().includes('auth') ||
+          key.toLowerCase().includes('session') ||
+          key.toLowerCase().includes('oneauth') ||
+          key.toLowerCase().includes('m365')) {
+        log('log1', '  FOUND: ' + key + ' = ' + val.substring(0, 100));
+        ssFound++;
+      }
+    }
+    log('log1', '  Total sessionStorage entries: ' + sessionStorage.length);
+    log('log1', '  Copilot/token entries: ' + ssFound);
+  } catch(e) { log('log1', '  Error: ' + e.message); }
+
+  log('log1', '');
+  log('log1', '  INSTRUKSI:');
+  log('log1', '  1. Sign in ke Copilot di Edge');
+  log('log1', '  2. Jalankan test ini (catat token yang ditemukan)');
+  log('log1', '  3. Sign out dari Copilot');
+  log('log1', '  4. Jalankan test ini LAGI');
+  log('log1', '  5. Bandingkan: apakah token masih ada setelah sign out?');
+  log('log1', '     Stable: token mungkin masih ada (BUG - no cleanup)');
+  log('log1', '     Canary: token dihapus (FIX - signout cleanup)');
+}
+
+// Test 2: Cek cookie
+function test2(){
+  log('log2', 'Test 2: Scan cookie untuk Copilot/auth');
+  log('log2', '');
+
+  try {
+    var cookies = document.cookie;
+    log('log2', '  document.cookie: ' + cookies.substring(0, 500));
+    log('log2', '');
+
+    var copilotCookies = cookies.split(';').filter(function(c){
+      return c.toLowerCase().includes('copilot') ||
+             c.toLowerCase().includes('auth') ||
+             c.toLowerCase().includes('token') ||
+             c.toLowerCase().includes('session') ||
+             c.toLowerCase().includes('m365') ||
+             c.toLowerCase().includes('oneauth') ||
+             c.toLowerCase().includes('ssr');
+    });
+
+    if (copilotCookies.length > 0) {
+      log('log2', '  Copilot/auth cookies ditemukan:');
+      copilotCookies.forEach(function(c){
+        log('log2', '    ' + c.trim().substring(0, 100));
+      });
+    } else {
+      log('log2', '  Tidak ada cookie Copilot/auth yang terbaca (HttpOnly?)');
+      log('log2', '  Cookie Copilot kemungkinan HttpOnly = tidak bisa dibaca dari JS');
+      log('log2', '  Cek manual: edge://settings/siteData?searchSubpage=copilot');
+    }
+  } catch(e) { log('log2', '  Error: ' + e.message); }
+
+  log('log2', '');
+  log('log2', '  INSTRUKSI:');
+  log('log2', '  1. Buka edge://settings/siteData');
+  log('log2', '  2. Cari cookie untuk copilot.microsoft.com');
+  log('log2', '  3. Sign out Copilot');
+  log('log2', '  4. Cek: apakah cookie masih ada setelah sign out?');
+  log('log2', '     Stable: cookie mungkin masih ada (BUG)');
+  log('log2', '     Canary: cookie dihapus (FIX)');
+}
+
+// Test 3: Cek IndexedDB
+function test3(){
+  log('log3', 'Test 3: Scan IndexedDB untuk token Copilot');
+  log('log3', '');
+
+  try {
+    var dbs = indexedDB.databases ? indexedDB.databases() : Promise.resolve([]);
+    dbs.then(function(databases){
+      log('log3', '  IndexedDB databases:');
+      if (databases.length === 0) {
+        log('log3', '    (kosong)');
+      }
+      databases.forEach(function(db){
+        log('log3', '    - ' + db.name + ' (version: ' + db.version + ')');
+        if (db.name.toLowerCase().includes('copilot') ||
+            db.name.toLowerCase().includes('token') ||
+            db.name.toLowerCase().includes('auth') ||
+            db.name.toLowerCase().includes('oneauth') ||
+            db.name.toLowerCase().includes('m365')) {
+          log('log3', '      *** COPilot/auth DB ditemukan! ***');
+        }
+      });
+      log('log3', '');
+      log('log3', '  INSTRUKSI:');
+      log('log3', '  1. Sign in ke Copilot');
+      log('log3', '  2. Jalankan test (catat DB yang ditemukan)');
+      log('log3', '  3. Sign out Copilot');
+      log('log3', '  4. Jalankan test LAGI');
+      log('log3', '  5. Bandingkan: apakah DB masih ada setelah sign out?');
+    }).catch(function(e){
+      log('log3', '  Error: ' + e.message);
+      log('log3', '  indexedDB.databases() mungkin tidak didukung');
+    });
+  } catch(e) { log('log3', '  Error: ' + e.message); }
+}
+</script>
+</body>
+</html>

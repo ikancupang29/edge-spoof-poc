@@ -1,0 +1,109 @@
+# BINARY DIFF ANALYSIS — Edge Stable v154 vs Canary v157
+
+## TEMUAN UTAMA
+
+### 1. copilotapp.exe & mscopilot.exe — DIHAPUS DI CANARY
+- HANYA ADA di stable (v154), dihapus di canary (v157)
+- Keduanya punya Mojo IPC + named pipe (`--pipe-name=PIPE`)
+- `BypassPeer`, `StartSelfBypassToLocalPeer`, `StartBridgeBypassFromLocalPeer`
+- `LaunchElevatedProcess` — bisa launch process dengan elevation
+- `edge-skip-compat-layer-relaunch`, `msRelaunchNoCompatLayer`
+- Telemetri: `https://nw-umwatson.events.data.microsoft.com/Telemetry.Request`
+- `edge_browser_session_csv.cc` — session tracking
+
+### 2. IframelessCommandExecutor — DIHAPUS DI CANARY
+```
+STABLE: iframeless_command_executor.cc
+CANARY: (dihapus)
+```
+- Sistem eksekusi command Copilot tanpa iframe
+- Di stable masih ada = mungkin masih bisa di-abuse
+- `IframelessPromptDispatcher: no executor for this browser (not a tabbed Browser); caller should use legacy path`
+- `OnPostMessageClosePane`, `OnPostMessageSendFeedback` — postMessage channel
+
+### 3. OneCopilot SignOut Cleanup — BARU DI CANARY
+```
+CANARY: onecopilot_signout_cleanup.cc  ← BARU
+CANARY: CompleteOneCopilotSignOutCleanup: ENTER
+CANARY: [OneCopilotAuth][OnecopilotSignoutCleanup]
+```
+- Di stable: TIDAK ADA signout cleanup
+- Artinya di stable, token Copilot mungkin masih valid setelah sign out
+- Potensi: token leak / session persistence setelah sign out
+
+### 4. CopilotExternalSidePanelNavigationThrottle — DIGANTI
+```
+STABLE: copilot_external_side_panel_navigation_throttle.cc
+CANARY: copilot_chat_navigation_throttle.cc
+```
+- Throttle navigasi sidebar Copilot diganti di canary
+- Di stable: throttle lama = mungkin ada bug navigasi
+
+### 5. URL Validation — DIGANTI
+```
+STABLE: "%s" entry in "%s" is not a valid origin...
+CANARY: "$1" entry in "$2" is not a valid origin...
+```
+- Format string berubah = code rewrite = mungkin fix bug validation
+
+### 6. SSR Cookie — BERUBAH
+```
+STABLE: OnSSREnabledCookieSet Resume / reason=SetSSREnabledCookie
+CANARY: OnSSREnabledCookieSet done
+```
+- SSR (Server-Side Rendering) cookie handling berubah
+
+### 7. SmartScreen — DIREFACTOR
+```
+STABLE: smartscreen@@0x28096F3D (hash lama)
+CANARY: smartscreen@@0x3C9F9C65 (hash baru)
+```
+- Semua class SmartScreen reputation di-refactor
+
+### 8. New di Canary: Copilot undocked pipe v1
+```
+edge.copilot.undocked.pipe.v1.CodeTabApprovalPolicy
+edge.copilot.undocked.pipe.v1.CodeTabSandboxPolicy
+edge.copilot.undocked.pipe.v1.CodingEngineOpenRequest
+edge.copilot.undocked.pipe.v1.CodingEngineOpenResponse
+edge.copilot.undocked.payload.authentication.v1.AuthChangedRequest
+edge.copilot.undocked.payload.permission.v1.PermissionRequestedRequest
+edge.copilot.undocked.payload.permission.v1.RespondToPermissionRequest
+```
+- Sistem IPC baru untuk Copilot undocked (terpisah dari browser)
+- CodeTabSandboxPolicy = sandbox policy untuk code execution
+- Permission request/response = permission system
+
+### 9. New di Canary: Private Verification Tokens
+```
+Security.PrivateVerificationTokens.FeatureActive
+Security.PrivateVerificationTokens.TokenFetchTime
+Storage.getPrivateVerificationTokens
+Storage.deletePrivateVerificationToken
+clearPrivateVerificationTokens
+```
+- Sistem token verifikasi privat baru
+
+### 10. New di Canary: ContextualTasks navigation
+```
+ContextualTasks navigation trace: HandleNavigationImpl returning false, non-web scheme from embedded page
+ContextualTasks navigation trace: OnThreadLinkClicked clobbering active tab
+ContextualTasks navigation trace: OpenUrl clobbering active tab
+```
+- "clobbering active tab" = potensi tab hijacking
+- "non-web scheme from embedded page" = potensi scheme injection
+
+### 11. New di Canary: CORS redirect check
+```
+CorsURLLoader: cross-origin or cross-scheme new_url in FollowRedirect is not permitted
+CorsURLLoader: new_url with credentials in FollowRedirect is not permitted
+```
+- Check baru di canary yang BELUM ADA di stable
+- Artinya di stable: cross-origin redirect + credentials mungkin masih permitted = BUG
+
+### 12. New di Canary: bypass_redirect_checks
+```
+bypass_redirect_checks
+```
+- Flag baru di canary untuk bypass redirect checks
+- Di stable: redirect checks mungkin belum ada atau bisa di-bypass
