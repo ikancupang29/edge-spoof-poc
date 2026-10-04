@@ -25,6 +25,10 @@ Bukan nebak — setiap PoC menargetkan code yang BERBEDA antara stable & canary.
 Test di <b>Edge Stable</b> dulu, lalu <b>Edge Canary</b>, bandingkan hasilnya.
 </div>
 
+<div class="sec">EKSEKUSI BERIKUTNYA (hasil studi github.com/ecdnts-del/spoof)</div>
+<a href="poc-permission-navrace.html" class="hot"><b>T2-A: Permission Prompt Origin Desync (Nav Race)</b>
+  <span class="tag">REKOMENDASI #1 buat dieksekusi: dialog permission (geolocation/notif) dibuka, lalu race navigasi cross-origin (httpbin delay / google.com:9090). Mode A prompt-dulu, Mode B nav-dulu. Preseden Chrome P1 #488762971. InPrivate, ulang 5x Stable lalu Canary, video wajib.</span></a>
+
 <div class="sec">PRIORITY 1: CORS Redirect Credentials Leak (paling menjanjikan)</div>
 <a href="poc-cors-redirect-credentials.html" class="hot"><b>CORS FollowRedirect Credentials Leak</b>
   <span class="tag">Canary v157 menambahkan check "new_url with credentials in FollowRedirect is not permitted". Stable TIDAK punya check ini. Test: fetch redirect dengan credentials.</span></a>
@@ -58,6 +62,8 @@ Test di <b>Edge Stable</b> dulu, lalu <b>Edge Canary</b>, bandingkan hasilnya.
   Kalau scheme injection BERHASIL di Stable tapi DITOLAK di Canary = HIT.<br><br>
 <b>SignOut Leak (Priority 3):</b> Sign in Copilot dulu → run test → sign out → run test lagi.<br>
   Kalau token masih ada setelah sign out di Stable tapi dihapus di Canary = HIT.<br><br>
+<b>Permission Nav Race (T2-A):</b> Buka di InPrivate → JALANKAN 5x per mode → catat checklist observasi di halaman.
+  Dialog nyebut origin target / izin nyasar ke origin salah / dua origin tampil barengan ≥3 dari 5x = HIT.<br><br>
 Report ke: https://msrc.microsoft.com/report → pilih "Microsoft Edge"
 </div>
 </body>

