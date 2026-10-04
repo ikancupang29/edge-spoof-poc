@@ -1,0 +1,108 @@
+# VERIFIKASI BINARY DIFF vs REFERENSI 666 ISSUE (MSRC Edge)
+Tanggal: 4 Okt 2026
+Metode: strings extraction (ASCII + UTF-16) dari msedge.dll + oneauth.dll + telclient.dll,
+        set-diff per build, lalu dicocokkan ke chromium-spoof-issues.txt (666 issue).
+Stable : 154.0.4258.53  (C:\Program Files (x86)\Microsoft\Edge\Application\154.0.4258.53)
+Canary : 157.0.4315.0   (%LOCALAPPDATA%\Microsoft\Edge SxS\Application\157.0.4315.0)
+Hasil  : stable 519.383 string unik | canary 527.860 unik
+         hanya-stable 32.505 | hanya-canary 40.982
+
+VERDICT PER KELAS (cocok ke taksonomi 666 issue)
+================================================================================
+
+## 1. CONTEXTUALTASKS TAB CLOBBER + NON-WEB SCHEME  ->  **BUG CANDIDATE #1 (PALING KUAT)**
+Bukti binary (hanya di CANARY, STABLE TIDAK ADA):
+  - "ContextualTasks navigation trace: OpenUrl clobbering active tab: "
+  - "ContextualTasks navigation trace: OnThreadLinkClicked clobbering active tab: "
+  - "ContextualTasks HandleCitationClick: clobbering active tab: "
+  - "ContextualTasks navigation trace: HandleNavigationImpl returning false,
+     non-web scheme from embedded page"
+  - flag "kContextualTasksClobberActiveTab" (baru di canary)
+  - file baru: contextual_tasks_ghost_loader_view.cc, contextual_tasks_permission_controller.cc
+Stable: fitur ContextualTasks ADA (249 string) tapi TANPA check clobber/non-web scheme.
+Referensi: issue 502887575 (P1, Chrome) "ContextualTasks MPArch allows arbitrary
+  WebUI navigation -> Info Disclosure / UI Spoofing" = preseden sama.
+Test: dari surface ContextualTasks Edge stable (jawaban AI / citation / thread link),
+  arahkan navigasi ke attacker: cek apakah tab aktif di-clobber (address bar stale)
+  atau scheme non-web (edge://, javascript:) bisa di-commit dari embedded page.
+Catatan jujur: bukan dari halaman web arbitrary — butuh konten ContextualTasks.
+
+## 2. COPILOT SIGNOUT TOKEN CLEANUP  ->  **BUG CANDIDATE #2 (paling gampang dites)**
+Bukti binary (hanya di CANARY, STABLE TIDAK ADA):
+  - file: chrome\browser\edge_copilot_app\one_copilot\onecopilot_signout_cleanup.cc
+  - " CompleteOneCopilotSignOutCleanup: ENTER"
+  - "[OneCopilotAuth][OnecopilotSignoutCleanup]"
+Stable: tidak ada kode cleanup sama sekali = sign out Copilot kemungkinan
+  tidak menghapus token/session.
+Referensi kelas: session persistence / info disclosure (bukan spoofing, tapi MSRC valid).
+Test: sign in Copilot -> sign out -> cek edge://settings/siteData (copilot.microsoft.com),
+  cookie, file profil (token on disk) di Stable vs Canary.
+PoC HTML lama (poc-copilot-signout-leak.html) salah jalur kalau cuma cek
+  localStorage halaman web — yang benar: storage profil/cookie browser.
+
+## 3. CORS FOLLOWREDIRECT new_url CHECK  ->  **BUG CANDIDATE #3 (beda binary nyata, tapi PoC LAMA SALAH JALUR)**
+Bukti binary (hanya di CANARY, STABLE TIDAK ADA) — verifikasi 100%:
+  - "CorsURLLoader: cross-origin or cross-scheme new_url in FollowRedirect is not permitted"
+  - "CorsURLLoader: new_url with credentials in FollowRedirect is not permitted"
+  - "CorsURLLoader: Forbidden header removal from renderer in FollowRedirect"
+  - "Unexpected new_url in FollowRedirect" / "new_url with credentials in FollowRedirect"
+Stable: hanya punya "Forbidden Sec- header from renderer in FollowRedirect" (lama).
+Referensi: 496169594 (P2) "origin spoofing via unsolicited FollowRedirect",
+  497030032 (CORS/ORB bypass via spoofed request URL), 40081583 (Origin 307), 40056924.
+JUJUR: poc-cors-redirect-credentials.html (fetch/XHR httpbin) TIDAK memicu jalur ini —
+  web content tidak bisa mengirim new_url via fetch. Jalur trigger = renderer-driven
+  FollowRedirect (navigation/service worker/extension). Riset jalur dulu, jangan
+  report PoC fetch apa adanya (pasti di-reject).
+
+## 4. EMBEDDED PERMISSION PROMPT (NTP / omnibox popup / ContextualTasks) + SPLIT WINDOW
+   ->  **CANDIDATE #4**
+Bukti binary:
+  - Stable: "Enables embedded permission dialogues for New Tab Page, omnibox popup,
+    and contextual tasks' permission requests."
+  - Canary: nama berubah ("... and 'chrome://contextual-tasks' (pre-rearchitecture) ...")
+    + file baru webui_permission_chip.cc = refactor mekanisme
+Referensi: 488762971 (omnibox wrong origin saat permission prompt, split view),
+  40089298, 40093361, 428484827 (split view permission confusion), 444653104.
+Test: request permission (geolocation/notifications) saat omnibox popup terbuka /
+  di ContextualTasks / di Edge split window (Edge punya fitur split — 558 vs 597 string).
+  Cek origin yang tampil di prompt vs tab yang menerima.
+
+## 5. KELAS IDN / UNICODE / DOWNLOAD FILENAME / SAVEFILE PICKER / PiP / ELIDE
+   ->  **TIDAK ADA BUKTI BUG DI DIFF (skip dulu)**
+Bukti: punycode 7=7 | ToUnicode 3=3 | ICU SpoofChecker 3=3 | lookalike 27=26 |
+  elide 36=36 | showSaveFilePicker 3=3 | SaveFilePicker 5=5 |
+  documentPictureInPicture 28=28 | FedCM 227=227 | PrintPreview 89=89
+Artinya: check di kelas ini identik stable vs canary -> kemungkinan sudah sama
+  dengan fix upstream. Buang waktu di sini = rendah hasil.
+
+## 6. FULLSCREEN / TOAST  ->  **TIDAK ADA CHECK BARU (kelas Chrome lama, sudah patch)**
+fullscreen 315 vs 317; string toast di canary = infra Windows toast baru (bukan security check).
+Tapi catatan: "kAiOverlayDialog" / "AI Overlay Dialog" hanya di STABLE (dihapus/diubah
+  di canary) — overlay dialog AI stable = surface lama, sekali cek overlay-over-permission.
+
+## 7. IFRAMELESS COMMAND EXECUTOR  ->  **TURUNKAN PRIORITAS (bukan bug spoofing dari web)**
+Bukti: iframeless_command_executor.cc hanya stable; dispatcher MASIH ADA di canary
+  (log berubah: "no valid tabbed browser, command handler, or owned target").
+  Artinya refactor, bukan fix keamanan yang jelas.
+JUJUR: poc-iframeless-command.html (postMessage ke window sendiri) tidak punya
+  jalur trigger dari halaman web arbitrary. Butuh IPC internal Copilot dulu.
+
+## 8. SAFE BROWSING EXTERNAL APP REDIRECT  ->  BUKTI LEMAH, sekali cek saja
+Stable-only: SafeBrowsingExternalAppRedirectTelemetry, ShouldReportExternalAppRedirect,
+  external_app_redirect_checking.cc. Kedua build punya "Not allowed to launch external
+  application from this site." Referensi: 40055515 (origin spoof external protocol
+  via server-side redirect), 40064442 (external protocol dialog overlap).
+
+================================================================================
+PRIORITAS TEST (Stable dulu, lalu Canary — 3-5x untuk race):
+  1. ContextualTasks clobber + non-web scheme   (kelas referensi #1/#7, preseden P1)
+  2. Copilot signout token cleanup               (paling gampang, tanpa PoC web)
+  3. Embedded permission prompt (omnibox popup / ContextualTasks / split window)
+  4. FollowRedirect new_url — RISET jalur trigger dulu, jangan pakai fetch PoC lama
+  5. External protocol redirect (sekali cek)
+
+YANG SUDAH DITUTUP (jangan dikerjakan lagi, tidak ada jendela di diff):
+  IDN punycode, download filename/RTL, showSaveFilePicker, Document PiP, elide, fullscreen toast.
+
+Semua string mentah: %TEMP%\opencode\binadiff\ (only_stable.txt, only_canary.txt,
+  all_stable.txt, all_canary.txt, report.txt) — temporary, boleh dihapus setelah sesi.

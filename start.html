@@ -41,6 +41,10 @@ Test di <b>Edge Stable</b> dulu, lalu <b>Edge Canary</b>, bandingkan hasilnya.
 <a href="poc-iframeless-command.html"><b>Copilot Iframeless Command</b>
   <span class="tag">Stable punya iframeless_command_executor.cc, Canary DIHAPUS. Test: cek apakah executor bisa di-trigger dari web.</span></a>
 
+<div class="sec">TEST PRIORITAS #1 (binary diff verified)</div>
+<a href="TEST-1-CONTEXTUALTASKS.txt" class="hot"><b>TEST 1: ContextualTasks Tab Clobber + Non-Web Scheme</b>
+  <span class="tag">Stable 154 TIDAK punya check "clobbering active tab" &amp; "non-web scheme from embedded page" (ada di Canary 157). Protocol test Stable vs Canary + preseden Chrome P1 #502887575.</span></a>
+
 <div class="sec">UTILITY</div>
 <a href="api-enumerator.html"><b>API Enumerator</b> — scan API khusus Edge</a>
 <a href="real-spoof-test.html"><b>Real Spoof Test</b> — 4 teknik A-D</a>
