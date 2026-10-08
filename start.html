@@ -25,6 +25,10 @@ Bukan nebak — setiap PoC menargetkan code yang BERBEDA antara stable & canary.
 Test di <b>Edge Stable</b> dulu, lalu <b>Edge Canary</b>, bandingkan hasilnya.
 </div>
 
+<div class="sec">TES TEMUAN (fs-c — fullscreen toast vs permission prompt)</div>
+<a href="poc-fs-prompt-hidden.html" class="hot"><b>Fullscreen Toast vs Dialog Izin (fake address bar chain)</b>
+  <span class="tag">Dari fs-c.html: requestFullscreen + Notification.requestPermission di klik yang sama → apakah toast "Press Esc to exit fullscreen" hilang/ketutup? Preseden P1 #40057591, #40068607, #40064688, #40063918 + P2 #390571618. KONTROL dulu, baru RACE, CHAIN cuma kalau HIT. Video layar penuh.</span></a>
+
 <div class="sec">BATCH TES DETERMINISTIK (hasil ≤1 menit per tes)</div>
 <a href="poc-fast-checks.html" class="hot"><b>5 Tes Cepat: Screen Share Picker / Filename / Download Attribution / PiP+Fullscreen / tel:</b>
   <span class="tag">Tiap tombol = kelas berbeda dgn preseden P1/P2 (#420734141, #467442136, #40095527, #40063918, #41492087). Tanpa race panjang — hasil kelihatan langsung di bubble/picker/notif. Urutan: 1 → 4 → 2 → 3 → 5.</span></a>
