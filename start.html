@@ -28,6 +28,8 @@ Test di <b>Edge Stable</b> dulu, lalu <b>Edge Canary</b>, bandingkan hasilnya.
 <div class="sec">EKSEKUSI BERIKUTNYA (hasil studi github.com/ecdnts-del/spoof)</div>
 <a href="poc-permission-navrace.html" class="hot"><b>T2-A: Permission Prompt Origin Desync (Nav Race)</b>
   <span class="tag">REKOMENDASI #1 buat dieksekusi: dialog permission (geolocation/notif) dibuka, lalu race navigasi cross-origin (httpbin delay / google.com:9090). Mode A prompt-dulu, Mode B nav-dulu. Preseden Chrome P1 #488762971. InPrivate, ulang 5x Stable lalu Canary, video wajib.</span></a>
+<a href="poc-permission-chip-stale.html" class="hot"><b>Kandidat #2: Permission Chip Stale setelah Nav Cross-Origin</b>
+  <span class="tag">Chip omnibox (PermissionChipView) masih menampilkan izin origin lama setelah tab pindah origin. WAJIB Step 0 Kontrol dulu (binary Edge punya HideChipAfterDelay — kalau tanpa kontrol, gampang salah baca). HIT: chip masih ada setelah halaman target selesai load penuh ≥3/5x. Preseden: sboxchip P1 40077529 + stale-bar P2 472892246.</span></a>
 
 <div class="sec">PRIORITY 1: CORS Redirect Credentials Leak (paling menjanjikan)</div>
 <a href="poc-cors-redirect-credentials.html" class="hot"><b>CORS FollowRedirect Credentials Leak</b>

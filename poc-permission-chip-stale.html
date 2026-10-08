@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Permission Chip Stale setelah Cross-Origin Nav</title>
+<style>
+  body { font-family:'Segoe UI',sans-serif; padding:40px; background:#f0f4ff; max-width:840px; }
+  .warn { background:#fff3cd; border:1px solid #ffe69c; border-radius:6px; padding:10px 14px; font-size:13px; margin-bottom:14px; }
+  .crit { background:#fff; border:1px solid #d0d8e8; border-radius:8px; padding:14px; font-size:13px; margin-bottom:14px; }
+  .hit { color:#b00020; font-weight:bold; }
+  fieldset { background:#fff; border:1px solid #d0d8e8; border-radius:8px; margin:12px 0; }
+  legend { font-size:13px; font-weight:bold; color:#555; }
+  button { padding:12px 18px; background:#0078d4; color:#fff; border:none; border-radius:6px;
+           font-size:14px; cursor:pointer; margin:4px 6px 4px 0; }
+  select { padding:7px; font-size:14px; }
+  #log { font-size:13px; background:#fff; padding:14px; border-radius:6px; white-space:pre-wrap; min-height:80px; }
+  #cd { font-size:34px; font-weight:bold; color:#b00020; text-align:center; padding:8px; display:none; }
+</style>
+</head>
+<body>
+<h3>Kandidat #2: Permission Chip Stale setelah Navigasi Cross-Origin</h3>
+
+<div class="warn">
+<b>Hipotesis:</b> chip permission di omnibox (class asli <code>PermissionChipView</code> /
+<code>PermissionDashboardController</code> — ada di msedge.dll) menampilkan keputusan izin
+<strong>origin lama</strong> setelah tab pindah origin. Chip = UI browser (halaman tak bisa memalsukannya),
+jadi kalau salah setelah commit = kesalahan browser.<br>
+<b>Penting:</b> binary Edge punya <code>HideChipAfterDelay</code> → chip bisa hilang sendiri karena timer.
+<strong>Tanpa kontrol, test ini gampang salah baca.</strong> Urutan wajib: KONTROL dulu → baru eksperimen.
+</div>
+
+<div class="crit">
+<b>Kriteria HIT (semua syarat ini, jangan klaim kalau cuma sebagian):</b><br>
+<span class="hit">H1:</span> Setelah halaman target <b>SELESAI load penuh</b> (spinner berhenti, konten tampil),
+chip "Location allowed" github.io <b>masih tampil</b> di omnibox, padahal origin target tak pernah di-grant.
+Minimal <b>3 dari 5</b> percobaan, pakai <b>2 target berbeda</b>.<br>
+<span class="hit">H2:</span> Chip masih ada → <b>klik chip</b> → bubble menyebut origin <b>TARGET</b>
+tapi state-nya berasal dari keputusan github.io (izin palsu utk origin tsb).<br>
+<span class="hit">H3:</span> Cek <code>edge://settings/content/locations</code>: izin github.io
+<b>nyasar tercatat</b> untuk origin target (permission leakage — kelas P1).<br><br>
+<b>BUKAN BUG (jangan dilaporkan):</b> chip hilang ≤1-2 dtk setelah commit (bisa HideChipAfterDelay —
+bandingkan dg KONTROL); chip cuma ada saat nav pending lalu hilang saat commit; hasil kontrol vs eksperimen
+sama; target ternyata sudah pernah di-grant (ganti target); prompt tak mau muncul =
+<b>TEST INVALID, bukan bug</b> → lapor balik ke gw, jangan klaim apa-apa.
+</div>
+
+<div class="crit">
+<b>STEP 0 — KONTROL (wajib, jalankan PERTAMA, tanpa navigasi):</b><br>
+Klik Kontrol → izinkan location → <b>amati chip di omnibox kiri</b> (sebelah URL):<br>
+a) Chip muncul? Y/N → kalau N = Edge tak menampilkan chip → STOP, test invalid.<br>
+b) Chip hilang sendiri setelah berapa detik? _____ dtk → ini baseline <code>HideChipAfterDelay</code>.<br>
+c) Dengan <b>watchPosition aktif</b>, chip bertahan terus atau tetap hilang? _____<br>
+Catat hasilnya sebelum lanjut ke eksperimen.
+</div>
+
+<fieldset>
+  <legend>Eksperimen (nav lintas origin saat chip aktif)</legend>
+  <label>Jeda nav setelah Granted:
+    <select id="delay">
+      <option value="0">0 ms</option>
+      <option value="500" selected>500 ms</option>
+      <option value="2000">2000 ms</option>
+    </select></label>
+  <label>Target (cross-origin, pastikan belum PERNAH di-grant — ganti tiap run):
+    <select id="target">
+      <option value="https://httpbin.org/delay/8" selected>httpbin.org/delay/8 (slow-commit)</option>
+      <option value="https://httpbingo.org/delay/8">httpbingo.org/delay/8 (slow-commit)</option>
+      <option value="https://example.com/">example.com (cepat)</option>
+      <option value="https://neverssl.com/">neverssl.com (cepat)</option>
+      <option value="https://google.com:9090/">google.com:9090 (fast-fail)</option>
+    </select></label>
+  <label><input type="checkbox" id="watch"> watchPosition (biar chip bertahan lama)</label>
+  <br><br>
+  <button onclick="doControl()">STEP 0: KONTROL (tanpa nav)</button>
+  <button onclick="doRun()">JALANKAN eksperimen 1x</button>
+</fieldset>
+
+<div id="cd"></div>
+<pre id="log"></pre>
+
+<div class="crit">
+<b>YANG HARUS DIREKAM (karena setelah nav halaman PoC HILANG, page tak bisa logging lagi):</b><br>
+1. Video omnibox: sebelum nav (chip terlihat) → saat loading → <b>≥5 dtk setelah halaman target selesai load</b>.<br>
+2. Setelah load selesai, jawab: chip masih ada? Y/N → kalau Y, <b>KLIK chip</b> → rekam teks bubble (origin siapa? tombol apa?).<br>
+3. Isi baseline kontrol (detik chip hilang tanpa nav).<br>
+4. Ulang 5x (3x httpbin + 2x target lain), lalu balik ke URL PoC utk run berikutnya (tombol Back cukup).<br>
+5. Selesai: cek <code>edge://settings/content/locations</code> — daftar origin target tak boleh muncul di sana.<br>
+6. Bandingkan: Edge Stable 154 → Edge Canary 157. Kalau Stable HIT & Canary bersih = jendela 0-day.
+</div>
+
+<script>
+function log(m){
+  var el=document.getElementById('log');
+  var t=(performance.now()/1000).toFixed(2);
+  el.textContent += '[t=+'+t+'s] '+m+'\n';
+  el.scrollTop=el.scrollHeight;
+}
+
+async function permState(){
+  if(!navigator.permissions || !navigator.permissions.query) return null;
+  try { return await navigator.permissions.query({name:'geolocation'}); }
+  catch(e){ log('permissions.query gagal: '+e.message); return null; }
+}
+
+function ensureWatch(){
+  if(document.getElementById('watch').checked && !window._watchId){
+    try {
+      window._watchId = navigator.geolocation.watchPosition(
+        function(){}, function(e){ log('[watch] err '+e.code); });
+      log('watchPosition dimulai (chip harus tetap aktif)');
+    } catch(e){ log('watch gagal: '+e.message); }
+  }
+}
+
+function countdownAndNav(ms, target){
+  var el=document.getElementById('cd');
+  var left=Math.ceil(ms/1000);
+  el.style.display='block';
+  function tick(){
+    if(ms<=0){
+      el.style.display='none';
+      log('NAV EKSEKUSI → '+target+'  (perhatikan chip & bar sekarang!)');
+      location.href=target;
+      return;
+    }
+    el.textContent = left>0 ? left+'…' : 'NAV!';
+    setTimeout(function(){ ms-=1000; left--; tick(); }, 1000);
+  }
+  log('nav dijadwalkan +'+ms+'ms → '+target);
+  tick();
+}
+
+async function doControl(){
+  log('=== KONTROL (tanpa navigasi) ===');
+  ensureWatch();
+  var st=await permState();
+  if(st && st.state==='prompt'){
+    log('state=prompt → minta izin, KLIK ALLOW di dialog, lalu amati chip:');
+    navigator.geolocation.getCurrentPosition(
+      function(){ log('GRANTED. AMATI CHIP: (a) muncul? (b) hilang setelah berapa detik?'); },
+      function(e){ log('ERROR '+e.code+' — pastikan settings = Ask & pakai InPrivate'); });
+  } else if(st){
+    log('state='+st.state+'. Kalau granted → chip harusnya terlihat sekarang (tanpa nav).');
+    log('AMATI: (a) chip ada? (b) hilang setelah berapa detik?');
+  }
+}
+
+async function doRun(){
+  var target=document.getElementById('target').value;
+  var delay=parseInt(document.getElementById('delay').value,10);
+  log('=== RUN eksperimen | target='+target+' ===');
+  ensureWatch();
+  var st=await permState();
+  if(!st){
+    log('permissions.query tidak tersedia → pakai tombol JALANKAN lagi utk nav manual');
+    countdownAndNav(delay, target); return;
+  }
+  if(st.state==='denied'){
+    log('DENIED → reset di edge://settings/content/locations atau buka InPrivate BARU. JANGAN lanjut, hasil kotor.');
+    return;
+  }
+  if(st.state==='prompt'){
+    log('state=prompt → minta izin. Nav mulai otomatis SETELAH allow (onchange).');
+    navigator.geolocation.getCurrentPosition(function(){}, function(e){ log('geo err '+e.code); });
+    st.onchange=function(){
+      if(st.state==='granted'){
+        log('GRANTED terdeteksi (onchange) — chip mulai tampil');
+        st.onchange=null;
+        countdownAndNav(delay, target);
+      }
+    };
+    setTimeout(function(){ if(st.onchange){ log('onchange tak fire dalam 8 dtk → klik JALANKAN lagi (mode granted)'); } }, 8000);
+  } else {
+    log('state=granted — chip harus sudah/sedang tampil → nav dalam delay tsb');
+    countdownAndNav(delay, target);
+  }
+}
+
+(async function init(){
+  var st=await permState();
+  log('PoC siap. permission geolocation = '+(st? st.state:'(tak tersedia)'));
+  log('Wajib urutan: STEP 0 KONTROL dulu → catat → baru JALANKAN 5x.');
+  log('Ingat: setelah nav, halaman ini hilang → observasi via VIDEO.');
+})();
+</script>
+</body>
+</html>
