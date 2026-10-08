@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fast Checks — 5 tes deterministik spoof</title>
+<style>
+  body { font-family:'Segoe UI',sans-serif; padding:40px; background:#f0f4ff; max-width:840px; }
+  .warn { background:#fff3cd; border:1px solid #ffe69c; border-radius:6px; padding:10px 14px; font-size:13px; margin-bottom:14px; }
+  .card { background:#fff; border:1px solid #d0d8e8; border-radius:8px; padding:14px; margin-bottom:12px; }
+  .card b { color:#202124; }
+  button, .btn { display:inline-block; padding:11px 16px; background:#0078d4; color:#fff; border:none;
+           border-radius:6px; font-size:14px; cursor:pointer; margin-top:8px; text-decoration:none; }
+  .hit { color:#b00020; font-weight:bold; }
+  #log { font-size:13px; background:#fff; padding:14px; border-radius:6px; white-space:pre-wrap; min-height:60px; }
+</style>
+</head>
+<body>
+<h3>Batch Tes Deterministik — 5 kelas, hasil ≤1 menit per tes</h3>
+<div class="warn">
+Semua kelas ini punya preseden issue Chromium (P1/P2) tapi statusnya di <b>Edge 154 belum tentu keburu</b> —
+makanya harus DITES, bukan ditebak. Tes 1-3 & 5 cross-origin dari github.io. Rekam video per tes.
+Prediksi jujur: 1 & 4 paling layak dicoba dulu.
+</div>
+
+<div class="card">
+<b>1. Screen Share Picker vs Nav Race — P1 #420734141</b><br>
+<span style="font-size:13px">Klik → picker "Choose what to share" muncul → <b>JANGAN diapa-apain</b> → 400ms kemudian tab
+navigasi ke httpbingo (loading 8 dtk). Amati: <b>picker tetap terbuka saat bar pindah?</b> Tulisan origin di
+picker (<i>"…with ikancupang29.github.io"</i>) berubah jadi <b>httpbingo.org</b>?<br>
+<span class="hit">HIT:</span> picker masih buka lintas origin DAN/OR label origin picker salah (nyebut target
+padahal yang minta github.io). <span>BUKAN BUG: picker nutup duluan.</span></span><br>
+<button onclick="t1()">Jalankan tes 1</button>
+</div>
+
+<div class="card">
+<b>2. Filename download sembunyiin ekstensi — P2 #467442136 + #41487774</b><br>
+<span style="font-size:13px">3 file di-download dengan nama buatan → <b>zoom bubble/shelf download</b>, baca nama
+yang tampil vs nama asli:<br>
+• RLO: nama asli <code>…gnp.exe</code>, kalau RLO ke-render harusnya tampil <code>…exe.png</code><br>
+• Blank U+2800: 60 spasi braille sebelum <code>.exe</code> — apakah <code>.exe</code> kesorot keliatan?<br>
+• Panjang: 150 huruf + <code>.exe</code> — apakah pemotongan nyembunyiin ekstensi?<br>
+<span class="hit">HIT:</span> yang tampil di bubble menutupi/menjungkirbalik ekstensi asli <code>.exe</code>.
+<span>BUKAN BUG: nama asli tetap kebaca semua / karakter aneh di-strip (itu fix).</span></span><br>
+<button onclick="dl('rlo')">2a RLO</button>
+<button onclick="dl('blank')">2b Blank</button>
+<button onclick="dl('long')">2c Panjang</button>
+</div>
+
+<div class="card">
+<b>3. Download → redirect: origin bubble salah — P1 #40095527</b><br>
+<span style="font-size:13px">File di-download dari github.io → 300ms kemudian tab redirect ke example.com.
+Amati bubble download: nyebut <b>github.io</b> (bener) atau <b>example.com</b> (origin nyasar)?<br>
+<span class="hit">HIT:</span> bubble/shelf nulis origin example.com padahal file datang dari github.io.
+<span>BUKAN BUG: tetap github.io.</span></span><br>
+<button onclick="t3()">Jalankan tes 3</button>
+</div>
+
+<div class="card">
+<b>4. PiP nutupin notifikasi fullscreen — P1 #40063918</b><br>
+<span style="font-size:13px">Klik → fullscreen → 600ms kemudian jendela PiP kecil terbuka. Amati: teks
+<b>"Press Esc to exit fullscreen"</b> masih keliatan atau ketutup PiP?<br>
+<span class="hit">HIT:</span> notifikasi exit-fullscreen hilang/ketutup PiP (user gak tau lagi fullscreen).
+<span>BUKAN BUG: notif tetap keliatan. (Esc = keluar fullscreen)</span></span><br>
+<button onclick="t4()">Jalankan tes 4</button>
+</div>
+
+<div class="card">
+<b>5. tel: bubble hijack address bar — P2 #41492087</b><br>
+<span style="font-size:13px">Klik link tel: → handler telepon muncul → amati address bar/bubble di atasnya:
+domain yang tampil tetep <b>github.io</b> atau berubah jadi nama kontak/tujuan?<br>
+<span class="hit">HIT:</span> address bar/bubble nampilkan identitas selain origin halaman.</span><br>
+<a class="btn" href="tel:+6281234567890" onclick="log('tes 5: tel diklik - amati bar')">Klik link tel: tes 5</a>
+</div>
+
+<pre id="log"></pre>
+
+<script>
+function log(m){
+  var el=document.getElementById('log');
+  el.textContent += m+'\n'; el.scrollTop=el.scrollHeight;
+}
+window.onerror=function(msg,src,line){ log('JS ERROR: '+msg+' (baris '+line+')'); };
+
+async function t1(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia){
+    log('tes 1: getDisplayMedia tak tersedia di Edge ini'); return;
+  }
+  log('tes 1: meminta display capture → picker harus muncul, JANGAN diapa-apain');
+  navigator.mediaDevices.getDisplayMedia({video:true}).then(function(s){
+    log('tes 1: picker DITERIMA (berarti keburu diklik) — stop track');
+    s.getTracks().forEach(function(t){t.stop();});
+  }).catch(function(e){
+    log('tes 1: picker ditutup/err: '+e.name+' ('+e.message+') — nav tetap jalan');
+  });
+  setTimeout(function(){
+    log('tes 1: NAV → httpbingo. SEKARANG amati picker vs address bar!');
+    location.href='https://httpbingo.org/delay/8';
+  }, 400);
+}
+
+var NAMES={
+  rlo:'lapor-\u202Egnp.exe',
+  blank:'aman'+'\u2800'.repeat(60)+'.exe',
+  long:'google.com/'+'a'.repeat(150)+'.exe'
+};
+function dl(kind){
+  var a=document.createElement('a');
+  a.href='TEST-1-CONTEXTUALTASKS.txt';   // same-origin biar download attribute dihormati
+  a.download=NAMES[kind];
+  document.body.appendChild(a); a.click(); a.remove();
+  log('tes 2['+kind+']: nama dikirim = '+JSON.stringify(NAMES[kind]));
+  log('  → ZOOM bubble download, bandingin nama tampil vs asli (asli selalu endswith .exe)');
+}
+
+async function t3(){
+  var a=document.createElement('a');
+  a.href='TEST-1-CONTEXTUALTASKS.txt';
+  a.download='atribusi-test.txt';
+  document.body.appendChild(a); a.click(); a.remove();
+  log('tes 3: download mulai dari github.io → redirect dalam 300ms');
+  setTimeout(function(){
+    log('tes 3: NAV → example.com. Amati bubble download sekarang!');
+    location.href='https://example.com';
+  }, 300);
+}
+
+async function t4(){
+  try{
+    if(!document.fullscreenElement) await document.documentElement.requestFullscreen();
+    log('tes 4: fullscreen aktif → PiP dibuka dalam 600ms');
+  }catch(e){ log('tes 4: fullscreen gagal: '+e.message); return; }
+  setTimeout(async function(){
+    try{
+      var w=await documentPictureInPicture.requestWindow({width:320,height:200});
+      w.document.body.innerHTML='<p style="margin:8px;font:14px sans-serif">PiP tes — notifikasi fullscreen harusnya masih terlihat</p>';
+      log('tes 4: PiP terbuka → LIHAT teks "Press Esc to exit fullscreen" masih ada?');
+    }catch(e){ log('tes 4: PiP gagal: '+e.message); }
+  }, 600);
+}
+
+log('Siap. Jalankan tes satu-satu, rekam video per tes. Urutan: 1 → 4 → 2 → 3 → 5.');
+</script>
+</body>
+</html>

@@ -25,6 +25,10 @@ Bukan nebak — setiap PoC menargetkan code yang BERBEDA antara stable & canary.
 Test di <b>Edge Stable</b> dulu, lalu <b>Edge Canary</b>, bandingkan hasilnya.
 </div>
 
+<div class="sec">BATCH TES DETERMINISTIK (hasil ≤1 menit per tes)</div>
+<a href="poc-fast-checks.html" class="hot"><b>5 Tes Cepat: Screen Share Picker / Filename / Download Attribution / PiP+Fullscreen / tel:</b>
+  <span class="tag">Tiap tombol = kelas berbeda dgn preseden P1/P2 (#420734141, #467442136, #40095527, #40063918, #41492087). Tanpa race panjang — hasil kelihatan langsung di bubble/picker/notif. Urutan: 1 → 4 → 2 → 3 → 5.</span></a>
+
 <div class="sec">EKSEKUSI BERIKUTNYA (hasil studi github.com/ecdnts-del/spoof)</div>
 <a href="poc-permission-navrace.html" class="hot"><b>T2-A: Permission Prompt Origin Desync (Nav Race)</b>
   <span class="tag">REKOMENDASI #1 buat dieksekusi: dialog permission (geolocation/notif) dibuka, lalu race navigasi cross-origin (httpbin delay / google.com:9090). Mode A prompt-dulu, Mode B nav-dulu. Preseden Chrome P1 #488762971. InPrivate, ulang 5x Stable lalu Canary, video wajib.</span></a>
