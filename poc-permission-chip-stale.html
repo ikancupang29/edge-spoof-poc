@@ -115,17 +115,18 @@ function ensureWatch(){
 
 function countdownAndNav(ms, target){
   var el=document.getElementById('cd');
-  var left=Math.ceil(ms/1000);
+  var end=Date.now()+ms; // deadline absolut — tanpa ini delay 500ms bisa molor jadi 1000ms
   el.style.display='block';
   function tick(){
-    if(ms<=0){
+    var left=end-Date.now();
+    if(left<=0){
       el.style.display='none';
       log('NAV EKSEKUSI → '+target+'  (perhatikan chip & bar sekarang!)');
       location.href=target;
       return;
     }
-    el.textContent = left>0 ? left+'…' : 'NAV!';
-    setTimeout(function(){ ms-=1000; left--; tick(); }, 1000);
+    el.textContent=Math.ceil(left/1000)+'…';
+    setTimeout(tick, Math.min(left, 250));
   }
   log('nav dijadwalkan +'+ms+'ms → '+target);
   tick();
@@ -168,6 +169,9 @@ async function doRun(){
         log('GRANTED terdeteksi (onchange) — chip mulai tampil');
         st.onchange=null;
         countdownAndNav(delay, target);
+      } else if(st.state==='denied'){
+        st.onchange=null;
+        log('DENIED di dialog — hasil kotor. Reset settings / InPrivate baru. JANGAN klaim apa-apa.');
       }
     };
     setTimeout(function(){ if(st.onchange){ log('onchange tak fire dalam 8 dtk → klik JALANKAN lagi (mode granted)'); } }, 8000);

