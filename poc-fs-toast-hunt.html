@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hunter: sembunyikan toast fullscreen</title>
+<style>
+  body { font-family:'Segoe UI',sans-serif; padding:40px; background:#eef2f8; max-width:900px; }
+  .warn { background:#fff3cd; border:1px solid #ffe69c; border-radius:6px; padding:10px 14px; font-size:13px; margin-bottom:14px; }
+  .card { background:#fff; border:1px solid #d0d8e8; border-radius:8px; padding:12px 14px; margin-bottom:10px; }
+  .card h4 { margin:0 0 4px 0; font-size:14px; }
+  .card .meta { font-size:12px; color:#556; margin:2px 0 6px 0; }
+  button { padding:9px 14px; background:#0078d4; color:#fff; border:none; border-radius:6px;
+           font-size:13px; cursor:pointer; margin:6px 6px 2px 0; }
+  button:disabled { background:#9ab; cursor:default; }
+  .hit { color:#b00020; font-weight:bold; }
+  #log { font-size:13px; background:#fff; padding:12px; border-radius:6px; white-space:pre-wrap; min-height:60px; }
+  #selTop { position:fixed; top:2px; left:50%; transform:translateX(-50%); z-index:5; }
+  #txtMenu { position:fixed; top:40px; left:50%; transform:translateX(-50%); width:420px;
+             background:#fff; border:1px solid #999; padding:10px; font-size:13px; }
+  video { width:1px; height:1px; opacity:0.01; position:fixed; bottom:0; right:0; }
+</style>
+</head>
+<body>
+<h3>Hunter: cari bypass toast "Press Esc to exit fullscreen"</h3>
+<div class="warn">
+<b>Yang udah kebukti BERSIH (jangan diulang):</b> fullscreen + <code>Notification.requestPermission()</code>
+— toast tetap muncul. Jalur itu stop.<br>
+<b>Halaman ini:</b> 10 vektor historis sisanya (semua pernah P1/P2 di Chromium: PiP #40063918, protocol
+#40091283, registerProtocolHandler #40092424, select dropdown #40059417, cycle enter/exit #40059501,
+share bar #40067914, dsb). <b>Langkah 0 wajib dulu.</b> Tiap tes: ulangi 3x, rekam video layar penuh.<br>
+<b>Deteksi manual</b> — toast = browser UI, JS gak bisa ngelihatnya. Yang ditanya cuma satu:
+<b>"toast peringatan pernah kelihatan gak sejak klik sampai aksi selesai?"</b><br>
+<span class="hit">HIT = toast TIDAK PERNAH terlihat</span> (padahal kontrol ada) → kelas #40068607.
+Urutan: jalankan A–E dulu, F/G/H belakangan (dialog-nya nyampah).
+</div>
+
+<div class="card">
+<h4>Langkah 0 — KONTROL (wajib)</h4>
+<div class="meta">Fullscreen doang. Harus muncul toast peringatan. Catat posisinya (atas-tengah? kiri?). Gak ada toast → STOP, beda perilaku.</div>
+<button onclick="tKontrol()">Kontrol: fullscreen saja</button>
+</div>
+
+<div class="card">
+<h4>A. navigationUI:'hide' (spesifikasi!)</h4>
+<div class="meta"><code>requestFullscreen({navigationUI:'hide'})</code> — opsi resmi spec buat minta sembunyikan UI navigasi. Chromium historically ignore, tapi Edge boleh beda. Kalau Edge nurut → toast hilang karena REQUEST HALAMAN = bug (page-controlled suppression).</div>
+<button onclick="tNavHide()">A: navigationUI hide</button>
+</div>
+
+<div class="card">
+<h4>B. Cycle kilat enter→exit→enter</h4>
+<div class="meta">#40059501/#40060151 (fix-nya dulu di Android). State akhir = fullscreen. Apakah toast di entry TERAKHIR muncul, atau kelewatan/suppressed karena baru exit?</div>
+<button onclick="tCycle(0)">B1: cycle tanpa jeda</button>
+<button onclick="tCycle(200)">B2: cycle jeda 200ms</button>
+<button onclick="tCycle(500)">B3: cycle jeda 500ms</button>
+</div>
+
+<div class="card">
+<h4>C. Select dropdown overlap (#40059417)</h4>
+<div class="meta">Select fixed di top-center → fullscreen + <code>showPicker()</code> barengan. Dropdown native (browser UI) kebuka dari posisi atas — bisa nutupin zona toast (top-center). Perhatikan: dropdown menutupi toast / toast gak pernah muncul?</div>
+<button onclick="tSelect()">C: fullscreen + select dropdown</button>
+</div>
+
+<div class="card">
+<h4>D. PiP klasik → fullscreen (#40063918 regression)</h4>
+<div class="meta">Video (canvas stream) → <code>requestPictureInPicture()</code> → lalu fullscreen. Jendela PiP = window always-on-top. Kalau posisi PiP menutup toast / toast suppressed → HIT. Catat juga posisi PiP vs toast.</div>
+<button onclick="tPip()">D: PiP lalu fullscreen</button>
+</div>
+
+<div class="card">
+<h4>E. Document PiP → fullscreen (API baru, bisa belum ke-cover fix lama)</h4>
+<div class="meta"><code>documentPictureInPicture.requestWindow()</code> → fullscreen dokumen utama. API ini datang SETELAH fix #40063918 — varian kelasnya bisa kelewat.</div>
+<button onclick="tDocPip()">E: document PiP lalu fullscreen</button>
+</div>
+
+<div class="card">
+<h4>F. External protocol prompt (#40091283 regression)</h4>
+<div class="meta">Fullscreen → <code>mailto:</code> → dialog native "Buka mailto?" muncul. Selalu tekan BATAL (jangan buka app). Tanya: toast kelihatan di atas dialog? hilang total? muncul lagi setelah batal?</div>
+<button onclick="tProto()">F: fullscreen + mailto dialog</button>
+</div>
+
+<div class="card">
+<h4>G. File chooser modal</h4>
+<div class="meta">Fullscreen → <code>showOpenFilePicker()</code> → dialog file native. Tekan BATAL. Kelas mirip #40091283 tapi vektor file-dialog (belum ada di dataset) — cek toast vs dialog &amp; setelah batal.</div>
+<button onclick="tFile()">G: fullscreen + file chooser</button>
+</div>
+
+<div class="card">
+<h4>H. registerProtocolHandler bar (#40092424 regression)</h4>
+<div class="meta">Munculin permission bar browser di area atas — zona yang sama kayak toast. Kalau bar nolak/menggeser toast → HIT. (Bisa throw kalau handler udah pernah didaftarkan — normal.)</div>
+<button onclick="tReg()">H: registerProtocolHandler bar</button>
+</div>
+
+<div class="card">
+<h4>I. Screen share bar + fullscreen (#40067914 family)</h4>
+<div class="meta">Dua langkah: 1) mulai share (pilih apa aja di picker), 2) setelah indikator share aktif, klik fullscreen. Share bar browser UI di area atas bisa tabrakan sama toast.</div>
+<button onclick="tShareStart()" id="btnShare">I1: mulai share screen</button>
+<button onclick="tShareFs()" id="btnShareFs" disabled>I2: fullscreen saat share aktif</button>
+<button onclick="tShareStop()" id="btnShareStop" disabled>stop share</button>
+</div>
+
+<div class="card">
+<h4>J. Context menu overlap (manual)</h4>
+<div class="meta">Blok teks di kotak bawah → klik tombol fullscreen → SECEPAT ITU klik kanan di teks terblok (posisi top-center). Menu native kebuka di situ = bisa nutupin toast. Amati.</div>
+<div id="txtMenu">Blok teks ini: the quick brown fox jumps over the lazy dog while the fullscreen toast is trying to appear at the top of the screen.</div>
+<button onclick="tCtx()">J: fullscreen (lalu klik kanan manual di teks)</button>
+</div>
+
+<pre id="log"></pre>
+<video id="vid" muted playsinline></video>
+
+<script>
+function log(m){ var el=document.getElementById('log'); el.textContent += m + '\n'; el.scrollTop = el.scrollHeight; }
+window.onerror = function(msg,src,line){ log('JS ERROR: '+msg+' (baris '+line+')'); };
+
+async function goFs(){
+  if(!document.fullscreenElement){ await document.documentElement.requestFullscreen(); }
+  return !!document.fullscreenElement;
+}
+
+function tKontrol(){
+  goFs().then(function(ok){ log('KONTROL: fullscreen='+ok+' → lihat toast: muncul? posisi? (harus iya)'); })
+        .catch(function(e){ log('kontrol gagal: '+e.message); });
+}
+
+function tNavHide(){
+  document.documentElement.requestFullscreen({navigationUI:'hide'}).then(function(){
+    log('A navigationUI=hide: fullscreen aktif → toast muncul gak? (HIT kalau gak pernah)');
+  }).catch(function(e){ log('A gagal: '+e.message); });
+}
+
+async function tCycle(delay){
+  log('B cycle jeda '+delay+'ms: 3x enter/exit, state akhir fullscreen → toast di entry terakhir?');
+  try{
+    for(var i=0;i<3;i++){
+      if(!document.fullscreenElement) await document.documentElement.requestFullscreen();
+      if(delay) await new Promise(function(r){ setTimeout(r,delay); });
+      if(document.fullscreenElement) await document.exitFullscreen();
+      if(delay) await new Promise(function(r){ setTimeout(r,delay); });
+    }
+    await document.documentElement.requestFullscreen();
+    log('B selesai: akhir=fullscreen → amati toast entry terakhir');
+  }catch(e){ log('B err: '+e.message); }
+}
+
+function tSelect(){
+  var s = document.getElementById('selTop');
+  goFs().then(function(ok){
+    try{ s.showPicker(); log('C: fullscreen='+ok+' + dropdown kebuka di top-center → menutupi toast gak?'); }
+    catch(e){ log('C showPicker err: '+e.message); }
+  });
+}
+
+async function tPip(){
+  try{
+    var c = document.createElement('canvas'); c.width=320; c.height=180;
+    var x = c.getContext('2d'); x.fillStyle='#123456'; x.fillRect(0,0,320,180);
+    x.fillStyle='#fff'; x.font='22px sans-serif'; x.fillText('PiP test',95,95);
+    var v = document.getElementById('vid');
+    v.srcObject = c.captureStream(1);
+    await v.play();
+    await v.requestPictureInPicture();
+    log('D: PiP aktif → sekarang fullscreen masuk → toast muncul gak? posisi PiP vs toast?');
+    await goFs();
+  }catch(e){ log('D err: '+e.message); }
+}
+
+async function tDocPip(){
+  try{
+    if(!documentPictureInPicture){ log('E: API documentPictureInPicture gak ada di Edge ini'); return; }
+    var w = await documentPictureInPicture.requestWindow({width:320,height:180});
+    w.document.body.innerHTML = '<div style="font:16px sans-serif;padding:12px">Document PiP</div>';
+    log('E: docPiP aktif → fullscreen masuk → toast muncul gak?');
+    await goFs();
+  }catch(e){ log('E err: '+e.message); }
+}
+
+function tProto(){
+  goFs().then(function(ok){
+    log('F: fullscreen='+ok+' → mailto dialog muncul (TEKAN BATAL) → toast di sekitar dialog kelihatan gak?');
+    try{ location.href = 'mailto:fs-toast-test@example.com?subject=toast-bypass'; }
+    catch(e){ log('F mailto err: '+e.message); }
+  });
+}
+
+async function tFile(){
+  try{
+    await goFs();
+    log('G: fullscreen aktif → file chooser muncul (TEKAN BATAL) → toast vs dialog? setelah batal masih ada toast?');
+    try{ await window.showOpenFilePicker(); }
+    catch(e){ log('G picker: '+e.name+' (cancel itu normal)'); }
+  }catch(e){ log('G err: '+e.message); }
+}
+
+function tReg(){
+  goFs().then(function(ok){
+    log('H: fullscreen='+ok+' → permission bar atas muncul gak? menutupi toast?');
+    try{
+      navigator.registerProtocolHandler('web+toast-test', location.href + '?h=%s', 'Toast Test');
+    }catch(e){ log('H reg err: '+e.name+' '+e.message); }
+  });
+}
+
+var shareStream = null;
+async function tShareStart(){
+  try{
+    shareStream = await navigator.mediaDevices.getDisplayMedia({video:true});
+    document.getElementById('btnShareFs').disabled = false;
+    document.getElementById('btnShareStop').disabled = false;
+    log('I1: share aktif (indikator browser muncul) → klik I2 fullscreen, amati share bar vs toast');
+    shareStream.getVideoTracks()[0].addEventListener('ended', function(){
+      document.getElementById('btnShareFs').disabled = true;
+      document.getElementById('btnShareStop').disabled = true;
+      log('I: share berakhir');
+    });
+  }catch(e){ log('I1 err: '+e.message); }
+}
+function tShareFs(){
+  goFs().then(function(ok){ log('I2: fullscreen='+ok+' saat share → toast muncul gak? bar share nutupin?'); });
+}
+function tShareStop(){
+  if(shareStream){ shareStream.getTracks().forEach(function(t){ t.stop(); }); }
+  document.getElementById('btnShareFs').disabled = true;
+  document.getElementById('btnShareStop').disabled = true;
+  log('I: share di-stop manual');
+}
+
+function tCtx(){
+  goFs().then(function(ok){
+    log('J: fullscreen='+ok+' → SEKARANG blok teks di kotak atas & klik kanan di situ (menu native nutup toast?)');
+  });
+}
+
+log('Siap. Urut: KONTROL → A → B1-B3 → C → D → E → (F,G,H belakangan) → I → J. Tiap tes ulangi 3x. Video layar penuh.');
+</script>
+<select id="selTop"><option>dropdown top-center</option><option>b</option></select>
+</body>
+</html>

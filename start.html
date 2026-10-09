@@ -26,6 +26,8 @@ Test di <b>Edge Stable</b> dulu, lalu <b>Edge Canary</b>, bandingkan hasilnya.
 </div>
 
 <div class="sec">TES TEMUAN (fs-c — fullscreen toast vs permission prompt)</div>
+<a href="poc-fs-toast-hunt.html" class="hot"><b>Hunter bypass toast fullscreen (10 vektor historis)</b>
+  <span class="tag">Lanjutan setelah jalur Notification.requestPermission = bersih. Tes: navigationUI:'hide', cycle enter/exit, select dropdown (#40059417), PiP (#40063918), document PiP, mailto protocol (#40091283), file chooser, registerProtocolHandler (#40092424), share bar (#40067914), context menu. KONTROL wajib dulu. Video layar penuh, ulangi 3x.</span></a>
 <a href="poc-fs-prompt-hidden.html" class="hot"><b>Fullscreen Toast vs Dialog Izin (fake address bar chain)</b>
   <span class="tag">Dari fs-c.html: requestFullscreen + Notification.requestPermission di klik yang sama → apakah toast "Press Esc to exit fullscreen" hilang/ketutup? Preseden P1 #40057591, #40068607, #40064688, #40063918 + P2 #390571618. KONTROL dulu, baru RACE, CHAIN cuma kalau HIT. Video layar penuh. Fake bar satu brand Microsoft: tab "Microsoft" + omnibox account.microsoft.com</span></a>
 
