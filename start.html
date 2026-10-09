@@ -27,7 +27,7 @@ Test di <b>Edge Stable</b> dulu, lalu <b>Edge Canary</b>, bandingkan hasilnya.
 
 <div class="sec">TES TEMUAN (fs-c — fullscreen toast vs permission prompt)</div>
 <a href="poc-fs-prompt-hidden.html" class="hot"><b>Fullscreen Toast vs Dialog Izin (fake address bar chain)</b>
-  <span class="tag">Dari fs-c.html: requestFullscreen + Notification.requestPermission di klik yang sama → apakah toast "Press Esc to exit fullscreen" hilang/ketutup? Preseden P1 #40057591, #40068607, #40064688, #40063918 + P2 #390571618. KONTROL dulu, baru RACE, CHAIN cuma kalau HIT. Video layar penuh.</span></a>
+  <span class="tag">Dari fs-c.html: requestFullscreen + Notification.requestPermission di klik yang sama → apakah toast "Press Esc to exit fullscreen" hilang/ketutup? Preseden P1 #40057591, #40068607, #40064688, #40063918 + P2 #390571618. KONTROL dulu, baru RACE, CHAIN cuma kalau HIT. Video layar penuh. Fake bar pakai domain jelas palsu: accounts.google.com.verify-domain.xyz</span></a>
 
 <div class="sec">BATCH TES DETERMINISTIK (hasil ≤1 menit per tes)</div>
 <a href="poc-fast-checks.html" class="hot"><b>5 Tes Cepat: Screen Share Picker / Filename / Download Attribution / PiP+Fullscreen / tel:</b>
