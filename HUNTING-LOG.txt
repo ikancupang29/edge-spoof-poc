@@ -52,6 +52,48 @@ ISIAN: R = REPRO, T = TIDAK repro, - = belum test
 VERDICT: HIT (0-day) / AKTIF (stable+canary repro) / SKIP (stable tidak repro)
 
 ================================================================================
+HASIL EKSPLORASI OTOMATIS (10 Okt 2026 malam — CDP headless Edge Stable 154)
+================================================================================
+Semua di bawah = TIDAK REPRO (otomatis, tanpa interaksi manual).
+Yang butuh manual = ditandai MANUAL.
+
+AUTO-NEGATIF (sudah ditest headless, hasil bersih):
+- CORS redirect ke chrome://edge://data:javascript:file:view-source:blob:
+  -> semua di-block "Failed to fetch" (bukan bug, PNA + normal behavior)
+- chrome://contextual-tasks dari web (location.href/iframe/window.open/a.click)
+  -> di-block semua
+- chrome://glic, chrome://glic-fre, chrome://glic-experimental-opt-in dari web
+  -> di-block semua
+- edge://copilot, edge://settings/* dari web -> di-block semua
+- microsoft-edge://?url=chrome://edge://data:javascript:file: dari web
+  -> di-block semua (external protocol, gak navigate)
+- Notification.requestPermission + fullscreen -> toast tetap muncul (bukan bypass)
+
+YANG SUDAH DIBIKIN PoC/live (butuh test manual):
+- poc-fs-toast-hunt.html (v14) -> 10 vektor bypass toast fullscreen:
+  navigationUI:hide, cycle enter/exit, select dropdown, PiP, documentPiP,
+  mailto protocol, file chooser, registerProtocolHandler, share bar, contextmenu
+- poc-fs-prompt-hidden.html (v13) -> fullscreen + Notification.requestPermission
+  + fake Microsoft address bar -> NOTIF PATH = BERSIH (toast tetap muncul)
+- poc-permission-chip-stale.html -> chip indikator stale setelah nav (Step 0 kontrol)
+- poc-fast-checks.html -> 5 tes deterministik (semua bersih di Edge 154)
+
+KANDIDAT #1: CONTEXTUALTASKS (binary evidence, butuh manual Copilot):
+- Stable 154: HandleNavigationImpl TANPA clobber-check + TANPA non-web scheme check
+- Canary 157: ADA 4 check baru (kContextualTasksClobberActiveTab + 3 trace logs)
+- Attack kit: CONTEXTUALTASKS-ATTACK-KIT.txt (prompt injection + steps)
+- BUTUH: akun signed-in Edge + Copilot side panel + klik citation manual
+- Preseden: Chrome issue 502887575 (P1) ContextualTasks arbitrary WebUI nav
+
+KANDIDAT #2: TOAST HUNTER (10 vektor, PoC live, butuh observasi manual):
+- Lihat poc-fs-toast-hunt.html
+- Yang paling berpeluang: navigationUI:hide (A), document PiP (E), file chooser (G)
+- Yang sudah kebukti BERSIH: Notification.requestPermission path
+
+KANDIDAT #3: CHIP STALE (PoC live, butuh Step 0 kontrol dulu):
+- Lihat poc-permission-chip-stale.html
+
+================================================================================
 CATATAN HIT (kalau nemu yang repro di stable)
 ================================================================================
 
