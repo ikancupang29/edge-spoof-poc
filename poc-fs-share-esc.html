@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>FS-SHARE-ESC: Fullscreen + navigator.share Esc test</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Segoe UI, sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 20px; }
+  h1 { color: #e94560; margin-bottom: 8px; }
+  .warn { background: #e94560; color: #fff; padding: 10px; border-radius: 6px; margin: 12px 0; font-weight: bold; }
+  .note { background: #16213e; padding: 10px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #e94560; }
+  .sec { background: #16213e; padding: 12px; border-radius: 6px; margin: 10px 0; }
+  button { background: #e94560; color: #fff; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; margin: 3px; font-size: 13px; }
+  button:hover { background: #c73652; }
+  .hit { color: #0f0; font-weight: bold; }
+  .miss { color: #f66; font-weight: bold; }
+  pre { background: #0f0f23; padding: 10px; border-radius: 4px; font-size: 12px; max-height: 300px; overflow: auto; }
+  #target { width: 800px; height: 400px; background: linear-gradient(135deg, #0f3460, #533483); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>FS-SHARE-ESC</h1>
+  <div class="warn">TEST: Fullscreen + navigator.share() → Esc masih bisa exit fullscreen?</div>
+  <div class="note">Preseden: Chromium P1 #40067914 "Esc KeyPress Does Not Work in FullScreen While navigator.share Is Active".<br>
+  Kalau share dialog aktif + Esc gak exit fullscreen = <b>HIT (fullscreen stuck)</b>.</div>
+
+  <div class="sec">
+    <h3>Target fullscreen</h3>
+    <div id="target">Target untuk fullscreen</div>
+  </div>
+
+  <div class="sec">
+    <h3>Control</h3>
+    <button onclick="enterFS()">1. Masuk Fullscreen</button>
+    <button onclick="exitFS()">2. Exit Fullscreen</button>
+    <button onclick="checkFS()">3. Cek FS state</button>
+    <span id="fsState" class="miss">FS: false</span>
+  </div>
+
+  <div class="sec">
+    <h3>Vektor Share (pilih setelah fullscreen aktif)</h3>
+    <button onclick="shareText()">A. navigator.share({text})</button>
+    <button onclick="shareURL()">B. navigator.share({url})</button>
+    <button onclick="shareTitleText()">C. navigator.share({title,text,url})</button>
+    <button onclick="shareWithFiles()">D. navigator.share({files})</button>
+    <button onclick="shareAfterDelay()">E. share() 500ms setelah FS</button>
+    <button onclick="shareRapid()">F. share() rapid 3x</button>
+  </div>
+
+  <div class="sec">
+    <h3>Test manual (setelah share dialog muncul)</h3>
+    <div class="note">1. Klik "1. Masuk Fullscreen"<br>
+    2. Klik salah satu share button (A-F) — share dialog native muncul<br>
+    3. Tekan <b>ESC</b> di keyboard<br>
+    4. Cek: share dialog tertutup? Fullscreen exit? Atau keduanya stuck?<br>
+    5. Kalau ESC gak ngapa-ngapain = <b>HIT</b></div>
+  </div>
+
+  <div class="sec">
+    <h3>Log</h3>
+    <pre id="log"></pre>
+  </div>
+</div>
+
+<script>
+const logEl = document.getElementById('log');
+function log(msg, cls) {
+  const t = new Date().toLocaleTimeString();
+  logEl.textContent += `[${t}] ${msg}\n`;
+  logEl.scrollTop = logEl.scrollHeight;
+  if (cls) logEl.lastChild && (logEl.lastChild.className = cls);
+}
+
+function enterFS() {
+  const el = document.getElementById('target');
+  el.requestFullscreen({ navigationUI: 'hide' }).then(() => {
+    log('Fullscreen ENTERED', 'hit');
+    checkFS();
+  }).catch(e => log('Fullscreen FAILED: ' + e.message, 'miss'));
+}
+function exitFS() {
+  if (document.fullscreenElement) {
+    document.exitFullscreen().then(() => {
+      log('Fullscreen EXITED', 'hit');
+      checkFS();
+    }).catch(e => log('Exit FAILED: ' + e.message, 'miss'));
+  } else log('Tidak ada FS element', 'miss');
+}
+function checkFS() {
+  const fs = !!document.fullscreenElement;
+  const el = document.getElementById('fsState');
+  el.textContent = 'FS: ' + fs + (fs ? ' (' + (document.fullscreenElement.id || document.fullscreenElement.tagName) + ')' : '');
+  el.className = fs ? 'hit' : 'miss';
+  log('checkFS → ' + fs);
+}
+
+async function shareText() {
+  log('navigator.share({text}) dipanggil...');
+  try {
+    await navigator.share({ text: 'test share dari fullscreen' });
+    log('share() resolved (user pilih action)', 'hit');
+  } catch(e) { log('share() error: ' + e.name + ' ' + e.message, 'miss'); }
+}
+async function shareURL() {
+  log('navigator.share({url}) dipanggil...');
+  try {
+    await navigator.share({ url: 'https://example.com' });
+    log('share() resolved', 'hit');
+  } catch(e) { log('share() error: ' + e.name + ' ' + e.message, 'miss'); }
+}
+async function shareTitleText() {
+  log('navigator.share({title,text,url}) dipanggil...');
+  try {
+    await navigator.share({ title: 'Test', text: 'test', url: 'https://example.com' });
+    log('share() resolved', 'hit');
+  } catch(e) { log('share() error: ' + e.name + ' ' + e.message, 'miss'); }
+}
+async function shareWithFiles() {
+  log('navigator.share({files}) dipanggil...');
+  try {
+    const file = new File(['test'], 'test.txt', { type: 'text/plain' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], text: 'file share test' });
+      log('share(files) resolved', 'hit');
+    } else log('canShare files = false (gak didukung)', 'miss');
+  } catch(e) { log('share(files) error: ' + e.name + ' ' + e.message, 'miss'); }
+}
+async function shareAfterDelay() {
+  log('share() dalam 500ms...');
+  setTimeout(async () => {
+    try {
+      await navigator.share({ text: 'delayed share' });
+      log('delayed share resolved', 'hit');
+    } catch(e) { log('delayed share error: ' + e.name, 'miss'); }
+  }, 500);
+}
+async function shareRapid() {
+  log('share() rapid 3x...');
+  for (let i = 0; i < 3; i++) {
+    try {
+      await navigator.share({ text: 'rapid ' + i });
+      log('rapid share ' + i + ' resolved', 'hit');
+    } catch(e) { log('rapid share ' + i + ' error: ' + e.name, 'miss'); }
+  }
+}
+
+// monitor fullscreenchange
+document.addEventListener('fullscreenchange', () => {
+  log('EVENT fullscreenchange → ' + !!document.fullscreenElement);
+  checkFS();
+});
+
+log('Halaman siap. navigator.share available: ' + (typeof navigator.share === 'function'));
+checkFS();
+</script>
+</body>
+</html>
