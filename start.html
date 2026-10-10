@@ -25,6 +25,12 @@ Bukan nebak — setiap PoC menargetkan code yang BERBEDA antara stable & canary.
 Test di <b>Edge Stable</b> dulu, lalu <b>Edge Canary</b>, bandingkan hasilnya.
 </div>
 
+<div class="sec">TES BARU: FULLSCREEN STUCK (bukan spoofing — UI lock/DoS)</div>
+<a href="poc-fs-share-esc.html" class="hot"><b>FS-SHARE-ESC: navigator.share() + Esc stuck (P1 #40067914)</b>
+  <span class="tag">Preseden P1: "Esc KeyPress Does Not Work in FullScreen While navigator.share Is Active". Masuk FS → klik share (A-F) → tekan Esc. Kalau Esc gak exit FS = HIT (fullscreen lock). Bukan spoofing — valid MSRC bug.</span></a>
+<a href="poc-fs-lock.html" class="hot"><b>FS-LOCK: 11 vektor fullscreen stuck</b>
+  <span class="tag">Re-enter loop (fullscreenchange→requestFullscreen), alert/confirm/prompt, share, showOpenFilePicker, print, window.open, beforeunload, pointer lock. Masuk FS → trigger → Esc. Kalau FS tetap aktif = HIT. STOP loop kalau perlu.</span></a>
+
 <div class="sec">TES TEMUAN (fs-c — fullscreen toast vs permission prompt)</div>
 <a href="poc-fs-toast-hunt.html" class="hot"><b>Hunter bypass toast fullscreen (10 vektor historis)</b>
   <span class="tag">Lanjutan setelah jalur Notification.requestPermission = bersih. Tes: navigationUI:'hide', cycle enter/exit, select dropdown (#40059417), PiP (#40063918), document PiP, mailto protocol (#40091283), file chooser, registerProtocolHandler (#40092424), share bar (#40067914), context menu. KONTROL wajib dulu. Video layar penuh, ulangi 3x.</span></a>
